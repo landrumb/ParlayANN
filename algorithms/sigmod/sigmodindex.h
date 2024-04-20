@@ -25,14 +25,18 @@
 #include <vector>
 
 #include "virtual_index.h"
+#include "query.h"
 
 #define DIM 100 // dimensionality of the data
+#define ALIGNED_DIM 112 
+#define K 100 // number of neighbors to return
 
 using index_type = uint32_t;
 using T = float;
 using Point = Euclidian_Point<T>;
 
-
+// type, category, start, end, index
+using Query = std::tuple<int, int, float, float, index_type>;
 
 
 /* The index itself, supporting construction from the competition format, querying in the competition format, and the underlying types of query that entails 
@@ -88,17 +92,143 @@ class SigmodIndex {
     /* Construct the index from the competition format */
     void build_index(const std::string& filename) {
         load_points(filename);
-        big_index = BigIndex(points, labels, timestamps);
-        range_index = RangeIndex(points, labels, timestamps);
+        big_index.fit(points, labels, timestamps);
+        range_index.fit(points, labels, timestamps);
         categorical_indices = parlay::delayed_seq<VirtualIndex<Point>>(0, [&](size_t i) {
             // this should be a little more involved perhaps
-            return SmallIndex(points, labels, timestamps);
+            index = SmallIndex();
+            index.fit(points, labels, timestamps);
+            return index;
         });
     }
 
-    /* query the index with the competition format */
+    /* query the index with the competition format 
+    
+    I think if it's worth it (possible) we can read in parallel
+    */
     void competition_query(const std::string& filename, index_type* out) {
-        throw std::runtime_error("Not implemented");
+        parlay::internal::timer t;
+        t.start();
+
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            throw std::runtime_error("Unable to open file " + filename);
+        }
+
+        uint32_t num_queries;
+        file.read((char*)&num_queries, sizeof(uint32_t));
+
+        // where we pack the queries in the order we read them
+        T* query_vectors = std::aligned_alloc(64, num_queries * ALIGNED_DIM * sizeof(T));
+        Query* queries = new Query[num_queries];
+        
+        int query_type_count[4] = {0, 0, 0, 0}; // will be annoying if parallelized
+
+        for (index_type i = 0; i < num_queries; i++) {
+            float query_type, category, start, end;
+
+            file.read((char*)&query_type, sizeof(float));
+            file.read((char*)&category, sizeof(float));
+            file.read((char*)&start, sizeof(float));
+            file.read((char*)&end, sizeof(float));
+
+            query_type_count[static_cast<int>(query_type)]++;
+
+            queries[i] = Query(static_cast<int>(query_type), static_cast<int>(category), start, end, i);
+
+            // read in the query vector
+            file.read((char*)&query_vectors[i *ALIGNED_DIM], DIM * sizeof(T));
+        }
+
+        file.close();
+
+        std::cout << "Read queries in " << t.next_time() << " seconds" << std::endl;
+
+        // this should be lexocographic sort over the strategically ordered Query tuple
+        parlay::sort_inplace(queries, queries + num_queries);
+
+        std::cout << "Sorted queries in " << t.next_time() << " seconds" << std::endl;
+
+        #ifdef PROD
+        // this code is faster than the more informative code below
+        // does not consider aligned dim, probably wrong
+            parlay::parallel_for(0, num_queries, [&](index_type i) {
+                auto [query_type, category, start, end, index] = queries[i];
+                Point query = Point(query_vectors + i * DIM, DIM);
+                switch (query_type) {
+                    case 0:
+                        big_index.knn(query, out + i * K, K);
+                        break;
+                    case 1:
+                        categorical_indices[category].knn(query, out + i * K, K);
+                        break;
+                    case 2:
+                        range_index.range_knn(query, out + i * K, std::make_pair(start, end), K);
+                        break;
+                    case 3:
+                        categorical_indices[category].range_knn(query, out + i * K, std::make_pair(start, end), K);
+                        break;
+                    default:
+                        throw std::runtime_error("Invalid query type");
+                }
+            });
+        #endif
+
+        #ifndef PROD
+            // interpretable query code that is probably a wee bit slower end to end
+            
+            // run big queries
+            parlay::parallel_for(0, query_type_count[0], [&](index_type i) {
+                auto [query_type, category, start, end, index] = queries[i];
+                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                big_index.knn(query, out + index * K, K);
+            });
+
+            double big_time = t.next_time();
+            std::cout << "Ran " << query_type_count[0] << " big queries in " << big_time << " seconds (QPS: " << query_type_count[0] / big_time << ")" << std::endl;
+
+            // run categorical queries
+            parlay::parallel_for(query_type_count[0], query_type_count[1], [&](index_type i) {
+                auto [query_type, category, start, end, index] = queries[i];
+                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                categorical_indices[category].knn(query, out + index * K, K);
+            });
+
+            double categorical_time = t.next_time();
+            std::cout << "Ran " << query_type_count[1] << " categorical queries in " << categorical_time << " seconds (QPS: " << query_type_count[1] / categorical_time << ")" << std::endl;
+
+            // run categorical range queries
+            parlay::parallel_for(query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[3], [&](index_type i) {
+                auto [query_type, category, start, end, index] = queries[i];
+                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                categorical_indices[category].range_knn(query, out + index * K, std::make_pair(start, end), K);
+            });
+
+            double categorical_range_time = t.next_time();
+            std::cout << "Ran " << query_type_count[3] << " categorical range queries in " << categorical_range_time << " seconds (QPS: " << query_type_count[3] / categorical_range_time << ")" << std::endl;
+
+            // run range queries
+            parlay::parallel_for(query_type_count[1], query_type_count[2], [&](index_type i) {
+                auto [query_type, category, start, end, index] = queries[i];
+                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                range_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+            });
+
+            double range_time = t.next_time();
+            std::cout << "Ran " << query_type_count[2] << " range queries in " << range_time << " seconds (QPS: " << query_type_count[2] / range_time << ")" << std::endl;
+
+            // run categorical range queries
+            parlay::parallel_for(query_type_count[0] + query_type_count[1] + query_type_count[3], num_queries, [&](index_type i) {
+                auto [query_type, category, start, end, index] = queries[i];
+                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                categorical_indices[category].range_knn(query, out + index * K, std::make_pair(start, end), K);
+            });
+
+            double range_time = t.next_time();
+            std::cout << "Ran " << query_type_count[3] << " categorical range queries in " << range_time << " seconds (QPS: " << query_type_count[3] / range_time << ")" << std::endl;
+        #endif
+
+        std::cout << "Ran all queries in " << t.next_time() << " seconds" << std::endl;
     }
 
     
