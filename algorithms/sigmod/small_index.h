@@ -58,8 +58,9 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         // for the sake of avoiding overhead from nested parallelism, we will compute distances serially
         parlay::sequence<std::pair<float, index_type>> distances(range.second);
 
-        for (index_type i = range.first; i < range.first + range.second; i++) {
-            distances[i] = std::make_pair(query.distance(pr[i]), i);
+        for (index_type i = 0; i < range.second; i++) {
+            index_type idx = i + range.first;
+            distances[i] = std::make_pair(query.distance(pr[idx]), idx);
         }
 
         std::sort(distances.begin(), distances.end()); // technically a top k = 100 but we'll just sort the whole thing
