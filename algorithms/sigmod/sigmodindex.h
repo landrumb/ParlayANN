@@ -15,7 +15,6 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <filesystem>
 #include <fstream>
@@ -27,11 +26,32 @@
 #define DIM 100 // dimensionality of the data
 
 using index_type = uint32_t;
-using data_type = float;
-using point_type = Euclidian_Point<data_type>;
+using T = float;
+using Point = Euclidian_Point<T>;
 
 
 
 
-/* The index itself, supporting construction from the competition format, querying in the competition format, and the underlying types of query that entails */
-template <
+/* The index itself, supporting construction from the competition format, querying in the competition format, and the underlying types of query that entails 
+
+BigIndex: The index we build over all the points, and probably the large categorical filters. This is probably a Vamana graph.
+SmallIndex: The index we build over the small categorical filters, which is probably internally a set of points we do exhaustive search on which may be reordered.
+RangeIndex: The index we build for range filters.
+
+Each index CAN own its own copy of the points, but the constructor will provide a reference to the full dataset (which an index can hold onto and trust remains valid for the lifetime of the SigmodIndex), the relevant points, and the corresponding relevant metadata.
+
+All methods of member indices which return point indices should return them relative to the original dataset. The member index is responsible for holding onto its own points' true indices.
+
+The component indices are templatized for easy comparison, and supposing we only instantiate them once, they shouldn't cause compile time overhead as far as I know.
+*/
+template <typename BigIndex, typename SmallIndex, typename RangeIndex>
+class SigmodIndex {
+    PointRange<T, Point> points;
+    parlay::sequence<index_type> labels;
+    parlay::sequence<float> timestamps;
+
+    BigIndex big_index;
+    
+    RangeIndex range_index;
+
+};
