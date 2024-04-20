@@ -60,7 +60,7 @@ struct NaiveIndex : public VirtualIndex<Point> {
         std::sort(distances.begin(), distances.end()); // technically a top k = 100 but we'll just sort the whole thing
 
         for (size_t i = 0; i < k; i++) {
-            out[i] = distances[i].second;
+            out[i] = pr.real_index(distances[i].second);
         }
     }
 
