@@ -70,7 +70,7 @@ struct Euclidian_Point {
 
   static bool is_metric() {return true;}
 
-  float distance(Euclidian_Point<T> x) {
+  float distance(const Euclidian_Point<T>& x) {
     return euclidian_distance(this->values, x.values, d);
   }
 

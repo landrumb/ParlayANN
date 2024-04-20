@@ -10,7 +10,7 @@
 using index_type = uint32_t;
 
 template <typename T, typename Point>
-struct NaiveIndex : public VirtualIndex<float> {
+struct NaiveIndex : public VirtualIndex<Point> {
     SubsetPointRange<T, Point> pr; // this will need to change if we collect copies of the vectors
     parlay::sequence<float> timestamps;
 
@@ -92,7 +92,7 @@ struct NaiveIndex : public VirtualIndex<float> {
         }
         end = l;
 
-        _range_knn(query, out, k, std::make_pair(start, end - start));
+        _index_range_knn(query, out, k, std::make_pair(start, end - start));
     }
 
 };
