@@ -24,6 +24,7 @@
 #include <variant>
 #include <vector>
 
+#include "virtual_index.h"
 
 #define DIM 100 // dimensionality of the data
 
@@ -53,7 +54,7 @@ class SigmodIndex {
     parlay::sequence<float> timestamps;
 
     BigIndex big_index;
-    
+    parlay::sequence<VirtualIndex<Point>> categorical_indices;
     RangeIndex range_index;
 
     public:
@@ -84,7 +85,13 @@ class SigmodIndex {
 
     /* Construct the index from the competition format */
     void build_index(const std::string& filename) {
-        throw std::runtime_error("Not implemented");
+        load_points(filename);
+        big_index = BigIndex(points, labels, timestamps);
+        range_index = RangeIndex(points, labels, timestamps);
+        categorical_indices = parlay::delayed_seq<VirtualIndex<Point>>(0, [&](size_t i) {
+            // this should be a little more involved perhaps
+            return SmallIndex(points, labels, timestamps);
+        });
     }
 
     /* query the index with the competition format */
@@ -92,5 +99,5 @@ class SigmodIndex {
         throw std::runtime_error("Not implemented");
     }
 
-
+    
 };
