@@ -68,11 +68,18 @@ class SigmodIndex {
 		}
 
 		uint32_t num_points;
-		reader.read((char*)&num_points, sizeof(uint32_t));
+		reader.read((char*)&num_points, 4);
+		T *values = new T[num_points * DIM];
 		for (int i = 0; i < num_points; i++) {
 			reader.read((char*)&labels[i], 4);
 			reader.read((char*)&timestamps[i], 4);
+			reader.read((char*)&point_values[DIM * i], DIM * sizeof(T));
 		}
+
+		points = PointRange<T, Point>(values, num_points, DIM);
+
+		delete[] values;
+		reader.close();
 	}
 
     /* Construct the index from the competition format */
