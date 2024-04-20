@@ -16,7 +16,7 @@ PROFILE = 0
 ifeq ($(DEBUG), 0)
 OPT = -O3 -DNDEBUG
 else
-OPT = -g
+OPT = -g -O0
 endif
 
 ifneq ($(PROFILE), 0)
