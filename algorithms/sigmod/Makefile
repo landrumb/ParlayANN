@@ -1,4 +1,4 @@
-TARGETS = profile_labels profile_timestamps query
+TARGETS = profile_labels profile_timestamps query measure_recall
 INCLUDE = ../../parlaylib/include
 REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../utils/NSGDist.h ../utils/parse_results.h ../utils/graph.h ../utils/point_range.h small_index.h
 
@@ -10,7 +10,7 @@ REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../util
 #JEMALLOC = -L$(JEMALLOCLD) -ljemalloc 
 #endif
 
-DEBUG = 1
+DEBUG = 0
 PROFILE = 0
 
 ifeq ($(DEBUG), 0)
