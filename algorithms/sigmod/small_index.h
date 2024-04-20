@@ -50,6 +50,10 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
     
     range is of the form (start, length) */
     inline void _index_range_knn(Point& query, index_type* out, size_t k, std::pair<index_type, index_type> range) const {
+        if (range.second < k) {
+            throw std::runtime_error("Range too small for k");
+        }
+
         // for the sake of avoiding overhead from nested parallelism, we will compute distances serially
         parlay::sequence<std::pair<float, index_type>> distances(range.second);
 
