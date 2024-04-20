@@ -231,7 +231,7 @@ public:
 
         #endif
 
-        std::cout << "Ran all queries in " << t.total() << " seconds" << std::endl;
+        std::cout << "Ran all queries in " << t.total_time() << " seconds" << std::endl;
     }
 
 private:
