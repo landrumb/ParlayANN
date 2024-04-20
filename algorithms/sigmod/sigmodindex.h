@@ -12,6 +12,7 @@
 
 #include "../utils/point_range.h"
 #include "../utils/types.h"
+#include "../utils/euclidian_point.h"
 
 #include <math.h>
 #include <stdio.h>
