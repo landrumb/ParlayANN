@@ -27,8 +27,8 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
                       return timestamps[i] < timestamps[j];
                   });
 
-        parlay::sequence<index_type> sorted_indices = parlay::sequence<index_type>(indices.size());
-        parlay::sequence<float> sorted_timestamps = parlay::sequence<float>(indices.size());
+        parlay::sequence<index_type> sorted_indices(indices.size());
+        parlay::sequence<float> sorted_timestamps(indices.size());
 
         for (size_t i = 0; i < indices.size(); i++) {
             sorted_indices[i] = indices[sorted_subset_indices[i]];
@@ -51,7 +51,7 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
     range is of the form (start, length) */
     inline void _index_range_knn(Point& query, index_type* out, size_t k, std::pair<index_type, index_type> range) const {
         // for the sake of avoiding overhead from nested parallelism, we will compute distances serially
-        parlay::sequence<std::pair<float, index_type>> distances = parlay::sequence<std::pair<float, index_type>>(range.second);
+        parlay::sequence<std::pair<float, index_type>> distances(range.second);
 
         for (index_type i = range.first; i < range.first + range.second; i++) {
             distances[i] = std::make_pair(query.distance(pr[i]), i);
