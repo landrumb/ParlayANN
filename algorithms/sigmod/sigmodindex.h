@@ -247,10 +247,18 @@ private:
         categorical_indices = parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>>::uninitialized(max_label + 1);
 
         // Profile if SmallIndex init being parallelized will also help, since there are a few labels with a large number of points.
-        parlay::parallel_for(0, categorical_indices.size(), [&] (size_t i) {
+        /*parlay::parallel_for(0, categorical_indices.size(), [&] (size_t i) {
             if (vectors_by_label[i].size() == 0) return;
             categorical_indices[i] = std::make_unique<SmallIndex>();
             categorical_indices[i]->fit(points, timestamps_by_label[i], vectors_by_label[i]);
-        });
+        });*/
+        for (int i = 0; i < categorical_indices.size(); i++) {
+            if (i == 200) {
+                std::cout << "here" << std::endl;
+            }
+            if (vectors_by_label[i].size() == 0) continue;
+            categorical_indices[i] = std::make_unique<SmallIndex>();
+            categorical_indices[i]->fit(points, timestamps_by_label[i], vectors_by_label[i]);
+        }
     }
 };

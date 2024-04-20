@@ -3,12 +3,12 @@ INCLUDE = ../../parlaylib/include
 REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../utils/NSGDist.h ../utils/parse_results.h ../utils/graph.h ../utils/point_range.h
 
 
-ifeq (, $(shell which jemalloc-config))
-JEMALLOC =
-else
-JEMALLOCLD = $(shell jemalloc-config --libdir)
-JEMALLOC = -L$(JEMALLOCLD) -ljemalloc 
-endif
+#ifeq (, $(shell which jemalloc-config))
+#JEMALLOC =
+#else
+#JEMALLOCLD = $(shell jemalloc-config --libdir)
+#JEMALLOC = -L$(JEMALLOCLD) -ljemalloc 
+#endif
 
 DEBUG = 1
 PROFILE = 0
