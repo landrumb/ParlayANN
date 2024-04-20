@@ -36,7 +36,7 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         }
 
         pr = SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>(points, sorted_indices);
-        this->timestamps = sorted_timestamps;
+        this->timestamps = std::move(sorted_timestamps);
     }
 
     void fit(PointRange<T, Point>& points,
