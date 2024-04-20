@@ -62,7 +62,7 @@ public:
     parlay::sequence<float> timestamps; // the timestamp for each point
 
     BigIndex big_index;
-    std::unique_ptr<VirtualIndex<T, Point>[]> categorical_indices;
+    parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>> categorical_indices;
 
     /* probably want to do something real here, but not real init */
     SigmodIndex() {};
@@ -213,7 +213,7 @@ public:
             parlay::parallel_for(query_type_count[0] + query_type_count[2], query_type_count[0] + query_type_count[2] + query_type_count[1], [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];
                 Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                categorical_indices[category].knn(query, out + index * K, K);
+                categorical_indices[category]->knn(query, out + index * K, K);
             });
 
             double categorical_time = t.next_time();
@@ -223,7 +223,7 @@ public:
             parlay::parallel_for(query_type_count[0] + query_type_count[2] + query_type_count[1], num_queries, [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];
                 Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                categorical_indices[category].range_knn(query, out + index * K, std::make_pair(start, end), K);
+                categorical_indices[category]->range_knn(query, out + index * K, std::make_pair(start, end), K);
             });
 
             double categorical_range_time = t.next_time();
@@ -236,21 +236,21 @@ public:
 
 private:
 	void init_categorical_indices() {
-		auto vectors_by_label = parlay::sequence<parlay::sequence<uint32_t>>(max_label);
-		auto timestamps_by_label = parlay::sequence<parlay::sequence<float>>(max_label);
+		auto vectors_by_label = parlay::sequence<parlay::sequence<uint32_t>>(max_label + 1);
+		auto timestamps_by_label = parlay::sequence<parlay::sequence<float>>(max_label + 1);
 
 		for (int i = 0; i < points.size(); i++) {
 			vectors_by_label[labels[i]].push_back(i);
 			timestamps_by_label[labels[i]].push_back(timestamps[i]);
 		}
 
-		categorical_indices = std::make_unique<SmallIndex[]>(max_label);
+		categorical_indices = parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>>::uninitialized(max_label + 1);
 
 		// Profile if SmallIndex init being parallelized will also help, since there are a few labels with a large number of points.
-		parlay::parallel_for(0, vectors_by_label.size(), [&] (size_t i) {
+		parlay::parallel_for(0, categorical_indices.size(), [&] (size_t i) {
 			if (vectors_by_label[i].size() == 0) return;
-			categorical_indices[i] = SmallIndex();
-			categorical_indices[i].fit(points, timestamps_by_label[i], vectors_by_label[i]);
+			categorical_indices[i] = std::make_unique<SmallIndex>();
+			categorical_indices[i]->fit(points, timestamps_by_label[i], vectors_by_label[i]);
 		});
 	}
 };
