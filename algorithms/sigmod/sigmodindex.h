@@ -23,6 +23,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <cassert>
 
 #include "virtual_index.h"
 #include "small_index.h"
@@ -57,6 +58,7 @@ class SigmodIndex {
 public:
     PointRange<T, Point> points;
     parlay::sequence<index_type> labels; // the label for each point
+	int max_label;
     parlay::sequence<float> timestamps; // the timestamp for each point
 
     BigIndex big_index;
@@ -77,10 +79,12 @@ public:
 		labels = parlay::sequence<index_type>::uninitialized(num_points);
 		timestamps = parlay::sequence<float>::uninitialized(num_points);
 
+		max_label = 0;
 		for (int i = 0; i < num_points; i++) {
 			float temp;
 			reader.read((char*)&temp, 4);
 			labels[i] = (uint32_t)temp;
+			if (labels[i] > max_label) max_label = labels[i];
 			reader.read((char*)&timestamps[i], 4);
 			reader.read((char*)&values[DIM * i], DIM * sizeof(T));
 		}
@@ -97,11 +101,12 @@ public:
         t.start();
 
         load_points(filename);
-
         std::cout << "Read points in " << t.next_time() << " seconds" << std::endl;
 
-        big_index.fit(points, labels, timestamps);
+		init_categorical_indices();
+		std::cout << "Built small indices in " << t.next_time() << " seconds" << std::endl;
 
+        big_index.fit(points, labels, timestamps);
         std::cout << "Built big index in " << t.next_time() << " seconds" << std::endl;
     }
 
@@ -226,4 +231,24 @@ public:
 
         std::cout << "Ran all queries in " << t.next_time() << " seconds" << std::endl;
     }
+
+private:
+	void init_categorical_indices() {
+		auto vectors_by_label = parlay::sequence<parlay::sequence<uint32_t>>(max_label);
+		auto timestamps_by_label = parlay::sequence<parlay::sequence<float>>(max_label);
+
+		for (int i = 0; i < index.points.size(); i++) {
+			vectors_by_label[index.labels[i]].push_back(i);
+			timestamps_by_label[index.labels[i]].push_back(timestamps[i]);
+		}
+
+		categorical_indices = std::make_unique<VirtualIndex<Point>[]>(max_label);
+
+		// Profile if SmallIndex init being parallelized will also help, since there are a few labels with a large number of points.
+		parlay::parallel_for(0, vectors_by_label, [&] (size_t i) {
+			if (vectors_by_label[i].size() == 0) return;
+			categorical_indices[i] = SmallIndex<Point>();
+			categorical_indices[i].fit(points, timestamps_by_label[i], vectors_by_label[i]);
+		});
+	}
 };
