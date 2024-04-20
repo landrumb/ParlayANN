@@ -179,6 +179,8 @@ public:
 
         #ifndef PROD
             // interpretable query code that is probably a wee bit slower end to end
+            // order should probably be big->range->categorical->categorical range
+            // or even better big->range->categorical+categorical range
             
             // run big queries
             parlay::parallel_for(0, query_type_count[0], [&](index_type i) {
@@ -220,15 +222,6 @@ public:
             double range_time = t.next_time();
             std::cout << "Ran " << query_type_count[2] << " range queries in " << range_time << " seconds (QPS: " << query_type_count[2] / range_time << ")" << std::endl;
 
-            // run categorical range queries
-            parlay::parallel_for(query_type_count[0] + query_type_count[1] + query_type_count[3], num_queries, [&](index_type i) {
-                auto [query_type, category, start, end, index] = queries[i];
-                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                categorical_indices[category].range_knn(query, out + index * K, std::make_pair(start, end), K);
-            });
-
-            double categorical_range_time = t.next_time();
-            std::cout << "Ran " << query_type_count[3] << " categorical range queries in " << categorical_range_time << " seconds (QPS: " << query_type_count[3] / categorical_range_time << ")" << std::endl;
         #endif
 
         std::cout << "Ran all queries in " << t.next_time() << " seconds" << std::endl;

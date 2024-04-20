@@ -69,7 +69,7 @@ struct PointRange{
       std::ifstream reader(filename);
       assert(reader.is_open());
 
-      //read num points and max degree
+      // read num points and max degree
       unsigned int num_points;
       unsigned int d;
       reader.read((char*)(&num_points), sizeof(unsigned int));
@@ -248,7 +248,7 @@ struct SubsetPointRange {
   
     size_t size() const { return n; }
   
-    Point operator [] (long i) {
+    Point operator [] (const long i) const {
       return (*pr)[subset[i]];
     }
 
