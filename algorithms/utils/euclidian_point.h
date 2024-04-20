@@ -34,6 +34,7 @@
 #include "../bench/parse_command_line.h"
 #include "types.h"
 // #include "common/time_loop.h"
+#include "fp32_sq_euclidean.h"
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -71,7 +72,8 @@ struct Euclidian_Point {
   static bool is_metric() {return true;}
 
   float distance(const Euclidian_Point<T>& x) {
-    return euclidian_distance(this->values, x.values, d);
+    // return euclidian_distance(this->values, x.values, d);
+    return sq_euclidean<100>(this->values, x.values);
   }
 
   void prefetch() {
