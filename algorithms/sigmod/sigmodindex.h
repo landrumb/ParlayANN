@@ -14,6 +14,7 @@
 #include "../utils/types.h"
 #include "../utils/euclidian_point.h"
 
+#include <cstdint>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -59,6 +60,20 @@ class SigmodIndex {
 
     /* probably want to do something real here, but not real init */
     SigmodIndex() = default;
+
+	void load_points(const std::string& filename) {
+		std::ifstream reader(filename);
+		if (!reader.is_open()) {
+			throw std::runtime_error("Unable to open file " + filename);
+		}
+
+		uint32_t num_points;
+		reader.read((char*)&num_points, sizeof(uint32_t));
+		for (int i = 0; i < num_points; i++) {
+			reader.read((char*)&labels[i], 4);
+			reader.read((char*)&timestamps[i], 4);
+		}
+	}
 
     /* Construct the index from the competition format */
     void build_index(const std::string& filename) {
