@@ -55,4 +55,20 @@ class SigmodIndex {
     
     RangeIndex range_index;
 
+    public:
+
+    /* probably want to do something real here, but not real init */
+    SigmodIndex() = default;
+
+    /* Construct the index from the competition format */
+    void build_index(const std::string& filename) {
+        throw std::runtime_error("Not implemented");
+    }
+
+    /* query the index with the competition format */
+    void competition_query(const std::string& filename, index_type* out) {
+        throw std::runtime_error("Not implemented");
+    }
+
+
 };
