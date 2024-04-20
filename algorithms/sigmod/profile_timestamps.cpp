@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
 	
 	for (int i = displayed_height - 1; i >= 0; i--) {
 		for (int j = 0; j < displayed_buckets; j++) {
-			if (displayed_hist[j] >= displayed_hist[max_freq] * i / 20) std::cout << "-";
+			if (displayed_hist[j] >= displayed_hist[max_freq] * i / 20) std::cout << "|";
 			else std::cout << " ";
 		}
 		std::cout << std::endl;
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
 		}
 
 		for (int i = 0; i < written_buckets; i++) {
-			writer << i << "\t" << written_hist[i] << "\n";
+			writer << (float)i / written_buckets << "\t" << written_hist[i] << "\n";
 		}
 		writer.close();
 	}
