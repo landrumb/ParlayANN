@@ -48,16 +48,14 @@ All methods of member indices which return point indices should return them rela
 The component indices are templatized for easy comparison, and supposing we only instantiate them once, they shouldn't cause compile time overhead as far as I know.
 */
 template <typename BigIndex, typename SmallIndex, typename RangeIndex>
-class SigmodIndex {
-    PointRange<T, Point> points;
-    parlay::sequence<index_type> labels;
-    parlay::sequence<float> timestamps;
+struct SigmodIndex {
+	PointRange<T, Point> points;
+	parlay::sequence<index_type> labels;
+	parlay::sequence<float> timestamps;
 
-    BigIndex big_index;
+		/*BigIndex big_index;
     parlay::sequence<VirtualIndex<Point>> categorical_indices;
-    RangeIndex range_index;
-
-    public:
+    RangeIndex range_index;*/
 
     /* probably want to do something real here, but not real init */
     SigmodIndex() = default;
@@ -71,12 +69,15 @@ class SigmodIndex {
 		uint32_t num_points;
 		reader.read((char*)&num_points, 4);
 		T *values = new T[num_points * DIM];
+		labels = parlay::sequence<index_type>::uninitialized(num_points);
+		timestamps = parlay::sequence<float>::uninitialized(num_points);
+
 		for (int i = 0; i < num_points; i++) {
 			float temp;
 			reader.read((char*)&temp, 4);
 			labels[i] = (uint32_t)temp;
 			reader.read((char*)&timestamps[i], 4);
-			reader.read((char*)&point_values[DIM * i], DIM * sizeof(T));
+			reader.read((char*)&values[DIM * i], DIM * sizeof(T));
 		}
 
 		points = PointRange<T, Point>(values, num_points, DIM);
@@ -88,18 +89,16 @@ class SigmodIndex {
     /* Construct the index from the competition format */
     void build_index(const std::string& filename) {
         load_points(filename);
-        big_index = BigIndex(points, labels, timestamps);
+        /*big_index = BigIndex(points, labels, timestamps);
         range_index = RangeIndex(points, labels, timestamps);
         categorical_indices = parlay::delayed_seq<VirtualIndex<Point>>(0, [&](size_t i) {
             // this should be a little more involved perhaps
             return SmallIndex(points, labels, timestamps);
-        });
+        });*/
     }
 
     /* query the index with the competition format */
     void competition_query(const std::string& filename, index_type* out) {
         throw std::runtime_error("Not implemented");
     }
-
-    
 };
