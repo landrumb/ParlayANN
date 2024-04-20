@@ -58,7 +58,7 @@ class SigmodIndex {
 public:
     PointRange<T, Point> points;
     parlay::sequence<index_type> labels; // the label for each point
-	int max_label;
+    int max_label;
     parlay::sequence<float> timestamps; // the timestamp for each point
 
     BigIndex big_index;
@@ -67,33 +67,33 @@ public:
     /* probably want to do something real here, but not real init */
     SigmodIndex() {};
 
-	void load_points(const std::string& filename) {
-		std::ifstream reader(filename);
-		if (!reader.is_open()) {
-			throw std::runtime_error("Unable to open file " + filename);
-		}
+    void load_points(const std::string& filename) {
+        std::ifstream reader(filename);
+        if (!reader.is_open()) {
+            throw std::runtime_error("Unable to open file " + filename);
+        }
 
-		uint32_t num_points;
-		reader.read((char*)&num_points, 4);
-		T *values = new T[num_points * DIM];
-		labels = parlay::sequence<index_type>::uninitialized(num_points);
-		timestamps = parlay::sequence<float>::uninitialized(num_points);
+        uint32_t num_points;
+        reader.read((char*)&num_points, 4);
+        T *values = new T[num_points * DIM];
+        labels = parlay::sequence<index_type>::uninitialized(num_points);
+        timestamps = parlay::sequence<float>::uninitialized(num_points);
 
-		max_label = 0;
-		for (int i = 0; i < num_points; i++) {
-			float temp;
-			reader.read((char*)&temp, 4);
-			labels[i] = (uint32_t)temp;
-			if (labels[i] > max_label) max_label = labels[i];
-			reader.read((char*)&timestamps[i], 4);
-			reader.read((char*)&values[DIM * i], DIM * sizeof(T));
-		}
+        max_label = 0;
+        for (int i = 0; i < num_points; i++) {
+            float temp;
+            reader.read((char*)&temp, 4);
+            labels[i] = (uint32_t)temp;
+            if (labels[i] > max_label) max_label = labels[i];
+            reader.read((char*)&timestamps[i], 4);
+            reader.read((char*)&values[DIM * i], DIM * sizeof(T));
+        }
 
-		points = PointRange<T, Point>(values, num_points, DIM);
+        points = PointRange<T, Point>(values, num_points, DIM);
 
-		delete[] values;
-		reader.close();
-	}
+        delete[] values;
+        reader.close();
+    }
 
     /* Construct the index from the competition format */
     void build_index(const std::string& filename) {
@@ -103,8 +103,8 @@ public:
         load_points(filename);
         std::cout << "Read points in " << t.next_time() << " seconds" << std::endl;
 
-		init_categorical_indices();
-		std::cout << "Built small indices in " << t.next_time() << " seconds" << std::endl;
+        init_categorical_indices();
+        std::cout << "Built small indices in " << t.next_time() << " seconds" << std::endl;
 
         big_index.fit(points, timestamps);
         std::cout << "Built big index in " << t.next_time() << " seconds" << std::endl;
@@ -235,22 +235,22 @@ public:
     }
 
 private:
-	void init_categorical_indices() {
-		auto vectors_by_label = parlay::sequence<parlay::sequence<uint32_t>>(max_label + 1);
-		auto timestamps_by_label = parlay::sequence<parlay::sequence<float>>(max_label + 1);
+    void init_categorical_indices() {
+        auto vectors_by_label = parlay::sequence<parlay::sequence<uint32_t>>(max_label + 1);
+        auto timestamps_by_label = parlay::sequence<parlay::sequence<float>>(max_label + 1);
 
-		for (int i = 0; i < points.size(); i++) {
-			vectors_by_label[labels[i]].push_back(i);
-			timestamps_by_label[labels[i]].push_back(timestamps[i]);
-		}
+        for (int i = 0; i < points.size(); i++) {
+            vectors_by_label[labels[i]].push_back(i);
+            timestamps_by_label[labels[i]].push_back(timestamps[i]);
+        }
 
-		categorical_indices = parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>>::uninitialized(max_label + 1);
+        categorical_indices = parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>>::uninitialized(max_label + 1);
 
-		// Profile if SmallIndex init being parallelized will also help, since there are a few labels with a large number of points.
-		parlay::parallel_for(0, categorical_indices.size(), [&] (size_t i) {
-			if (vectors_by_label[i].size() == 0) return;
-			categorical_indices[i] = std::make_unique<SmallIndex>();
-			categorical_indices[i]->fit(points, timestamps_by_label[i], vectors_by_label[i]);
-		});
-	}
+        // Profile if SmallIndex init being parallelized will also help, since there are a few labels with a large number of points.
+        parlay::parallel_for(0, categorical_indices.size(), [&] (size_t i) {
+            if (vectors_by_label[i].size() == 0) return;
+            categorical_indices[i] = std::make_unique<SmallIndex>();
+            categorical_indices[i]->fit(points, timestamps_by_label[i], vectors_by_label[i]);
+        });
+    }
 };
