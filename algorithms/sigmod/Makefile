@@ -10,9 +10,8 @@ JEMALLOCLD = $(shell jemalloc-config --libdir)
 JEMALLOC = -L$(JEMALLOCLD) -ljemalloc 
 endif
 
-DEBUG = 0
+DEBUG = 1
 PROFILE = 0
-SIMD = 0
 
 ifeq ($(DEBUG), 0)
 OPT = -O3 -DNDEBUG
@@ -24,11 +23,8 @@ ifneq ($(PROFILE), 0)
 PROF = -pg
 endif
 
-ifneq ($(SIMD), 0)
-ARCH = -msse4.2 -D__SSE4_2_
-endif
 
-CXXFLAGS = $(OPT) $(PROF) $(ARCH) -mcx16 -std=c++17 -march=native -I .
+CXXFLAGS = $(OPT) $(PROF) -mcx16 -std=c++17 -march=native -I .
 LDFLAGS = -ldl $(JEMALLOC)
 
 OMPFLAGS = -DPARLAY_OPENMP -fopenmp
