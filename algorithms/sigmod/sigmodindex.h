@@ -90,15 +90,18 @@ class SigmodIndex {
 
     /* Construct the index from the competition format */
     void build_index(const std::string& filename) {
+        parlay::internal::timer t;
+        t.start();
+
         load_points(filename);
+
+        std::cout << "Read points in " << t.next_time() << " seconds" << std::endl;
+
         big_index.fit(points, labels, timestamps);
 
-        categorical_indices = parlay::delayed_seq<VirtualIndex<Point>>(0, [&](size_t i) {
-            // this should be a little more involved perhaps
-            index = SmallIndex();
-            index.fit(points, labels, timestamps, );
-            return index;
-        });
+        std::cout << "Built big index in " << t.next_time() << " seconds" << std::endl;
+
+        
     }
 
     /* query the index with the competition format 
