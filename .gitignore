@@ -11,3 +11,4 @@ python/index_cache
 python/tmp_index_cache
 
 *.swp
+*.txt

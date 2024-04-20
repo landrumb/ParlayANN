@@ -1,3 +1,8 @@
+TARGETS = profile_labels profile_timestamps
+INCLUDE = ../../parlaylib/include
+REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../utils/NSGDist.h ../utils/parse_results.h ../utils/graph.h ../utils/point_range.h
+
+
 ifeq (, $(shell which jemalloc-config))
 JEMALLOC =
 else
@@ -46,10 +51,6 @@ CFLAGS = $(PBBFLAGS) $(CXXFLAGS)
 LFLAGS = $(PBBFLAGS) $(LDFLAGS)
 endif
 
-
-TARGETS = profile_dims
-INCLUDE = ../../parlaylib/include
-REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../utils/NSGDist.h ../utils/parse_results.h ../utils/graph.h ../utils/point_range.h
 
 all: $(TARGETS)
 
