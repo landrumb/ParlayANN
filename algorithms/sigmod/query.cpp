@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    SigmodIndex<NaiveIndex<float, Euclidian_Point<float>>, NaiveIndex<float, Euclidian_Point<float>>> index;
+    SigmodIndex<VamanaIndex<float, Euclidian_Point<float>>, NaiveIndex<float, Euclidian_Point<float>>> index;
 
     index.build_index(argv[1]);
 

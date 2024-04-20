@@ -27,6 +27,7 @@
 
 #include "virtual_index.h"
 #include "small_index.h"
+#include "big_index.h"
 
 #define DIM 100 // dimensionality of the data
 #define ALIGNED_DIM 112 
