@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
 		exit(0);
 	}
 
-	SigmodIndex index;
+	SigmodIndex<int, int, int> index;
 
 	index.load_points(argv[1]);
 	return 0;
