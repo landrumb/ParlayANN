@@ -72,7 +72,9 @@ class SigmodIndex {
 		reader.read((char*)&num_points, 4);
 		T *values = new T[num_points * DIM];
 		for (int i = 0; i < num_points; i++) {
-			reader.read((char*)&labels[i], 4);
+			float temp;
+			reader.read((char*)&temp, 4);
+			labels[i] = (uint32_t)temp;
 			reader.read((char*)&timestamps[i], 4);
 			reader.read((char*)&point_values[DIM * i], DIM * sizeof(T));
 		}
