@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 		exit(0);
 	}
 
-	SigmodIndex<int, int, int> index;
+	SigmodIndex<NaiveIndex<float, Euclidian_Point<float>>, NaiveIndex<float, Euclidian_Point<float>>> index;
 
 	auto start_time = std::chrono::high_resolution_clock::now();
 	index.load_points(argv[1]);

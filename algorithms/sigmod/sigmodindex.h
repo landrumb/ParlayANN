@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "virtual_index.h"
-#include "query.h"
+#include "small_index.h"
 
 #define DIM 100 // dimensionality of the data
 #define ALIGNED_DIM 112 
@@ -59,8 +59,11 @@ public:
     parlay::sequence<index_type> labels; // the label for each point
     parlay::sequence<float> timestamps; // the timestamp for each point
 
+    BigIndex big_index;
+    std::unique_ptr<VirtualIndex<Point>[]> categorical_indices;
+
     /* probably want to do something real here, but not real init */
-    SigmodIndex() = default;
+    SigmodIndex() {};
 
 	void load_points(const std::string& filename) {
 		std::ifstream reader(filename);
@@ -224,8 +227,8 @@ public:
                 categorical_indices[category].range_knn(query, out + index * K, std::make_pair(start, end), K);
             });
 
-            double range_time = t.next_time();
-            std::cout << "Ran " << query_type_count[3] << " categorical range queries in " << range_time << " seconds (QPS: " << query_type_count[3] / range_time << ")" << std::endl;
+            double categorical_range_time = t.next_time();
+            std::cout << "Ran " << query_type_count[3] << " categorical range queries in " << categorical_range_time << " seconds (QPS: " << query_type_count[3] / categorical_range_time << ")" << std::endl;
         #endif
 
         std::cout << "Ran all queries in " << t.next_time() << " seconds" << std::endl;

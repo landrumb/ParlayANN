@@ -16,7 +16,7 @@ struct NaiveIndex : public VirtualIndex<float> {
 
     NaiveIndex() = default;
 
-    void fit(PointRange<Point>& points,
+    void fit(PointRange<T, Point>& points,
              parlay::sequence<float>& timestamps,
              parlay::sequence<index_type>& indices) {
         // before creating the pointrange we want to argsort the indices by timestamp
@@ -42,7 +42,7 @@ struct NaiveIndex : public VirtualIndex<float> {
     /* internal method to centralize exhaustive search logic
     
     range is of the form (start, length) */
-    inline void _index_range_knn(Point* query, index_type out*, size_t k, std::pair<index_type, index_type> range) const {
+    inline void _index_range_knn(Point& query, index_type* out, size_t k, std::pair<index_type, index_type> range) const {
         // for the sake of avoiding overhead from nested parallelism, we will compute distances serially
         parlay::sequence<std::pair<float, index_type>> distances = parlay::sequence<std::pair<float, index_type>>(range.second);
 
@@ -57,11 +57,11 @@ struct NaiveIndex : public VirtualIndex<float> {
         }
     }
 
-    override void knn(Point* query, index_type* out, size_t k) const {
+    void knn(Point& query, index_type* out, size_t k) const override {
         _index_range_knn(query, out, k, std::make_pair(0, pr.size()));
     }
 
-    override void range_knn(Point* query, index_type* out, std::pair<float, float> endpoints, size_t k) const {
+    void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) const override {
         // we will need to do a binary search to find the start and end of the range
         index_type start = 0; // start is the index of the first element geq endpoints.first
         index_type end = pr.size(); // end is the index of the last element leq endpoints.second
