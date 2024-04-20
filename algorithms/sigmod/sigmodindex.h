@@ -51,15 +51,14 @@ All methods of member indices which return point indices should return them rela
 
 The component indices are templatized for easy comparison, and supposing we only instantiate them once, they shouldn't cause compile time overhead as far as I know.
 */
-template <typename BigIndex, typename SmallIndex, typename RangeIndex>
+template <typename BigIndex, typename SmallIndex>
 class SigmodIndex {
     PointRange<T, Point> points;
-    parlay::sequence<index_type> labels;
-    parlay::sequence<float> timestamps;
+    parlay::sequence<index_type> labels; // the label for each point
+    parlay::sequence<float> timestamps; // the timestamp for each point
 
     BigIndex big_index;
     parlay::sequence<VirtualIndex<Point>> categorical_indices;
-    RangeIndex range_index;
 
     public:
 
@@ -93,11 +92,11 @@ class SigmodIndex {
     void build_index(const std::string& filename) {
         load_points(filename);
         big_index.fit(points, labels, timestamps);
-        range_index.fit(points, labels, timestamps);
+
         categorical_indices = parlay::delayed_seq<VirtualIndex<Point>>(0, [&](size_t i) {
             // this should be a little more involved perhaps
             index = SmallIndex();
-            index.fit(points, labels, timestamps);
+            index.fit(points, labels, timestamps, );
             return index;
         });
     }
@@ -163,7 +162,7 @@ class SigmodIndex {
                         categorical_indices[category].knn(query, out + i * K, K);
                         break;
                     case 2:
-                        range_index.range_knn(query, out + i * K, std::make_pair(start, end), K);
+                        big_index.range_knn(query, out + i * K, std::make_pair(start, end), K);
                         break;
                     case 3:
                         categorical_indices[category].range_knn(query, out + i * K, std::make_pair(start, end), K);
@@ -211,7 +210,7 @@ class SigmodIndex {
             parlay::parallel_for(query_type_count[1], query_type_count[2], [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];
                 Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                range_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+                big_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
             });
 
             double range_time = t.next_time();
