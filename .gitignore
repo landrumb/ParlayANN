@@ -5,3 +5,5 @@ python/index_cache/*
 python/logs/*
 python/index_cache
 python/tmp_index_cache
+
+*.swp
