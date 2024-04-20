@@ -1,4 +1,5 @@
 /* A naive exhaustive search index */
+#pragma once
 
 #include "virtual_index.h"
 
