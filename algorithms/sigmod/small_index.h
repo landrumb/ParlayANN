@@ -39,6 +39,13 @@ struct NaiveIndex : public VirtualIndex<Point> {
         this->timestamps = sorted_timestamps;
     }
 
+    void fit(PointRange<T, Point>& points,
+             parlay::sequence<float>& timestamps) {
+        auto indices = parlay::tabulate(points.size(), [](index_type i) { return i; });
+
+        fit(points, timestamps, indices);
+    }
+
     /* internal method to centralize exhaustive search logic
     
     range is of the form (start, length) */
