@@ -9,10 +9,90 @@
 
 using index_type = uint32_t;
 
+template <typename T, typename Point>
 struct NaiveIndex : public VirtualIndex<float> {
-  parlay::sequence<float> values;
-  parlay::sequence<index_type> labels;
-  parlay::sequence<float> timestamps;
-  parlay::sequence<index_type> indices;
+    SubsetPointRange<T, Point> pr; // this will need to change if we collect copies of the vectors
+    parlay::sequence<float> timestamps;
 
-}
+    NaiveIndex() = default;
+
+    void fit(PointRange<Point>& points,
+             parlay::sequence<float>& timestamps,
+             parlay::sequence<index_type>& indices) {
+        // before creating the pointrange we want to argsort the indices by timestamp
+        parlay::sequence<index_type> sorted_subset_indices = parlay::sequence<index_type>(indices.size());
+
+        std::sort(sorted_subset_indices.begin(), sorted_subset_indices.end(),
+                  [&timestamps](index_type i, index_type j) {
+                      return timestamps[i] < timestamps[j];
+                  });
+
+        parlay::sequence<index_type> sorted_indices = parlay::sequence<index_type>(indices.size());
+        parlay::sequence<float> sorted_timestamps = parlay::sequence<float>(indices.size());
+
+        for (size_t i = 0; i < indices.size(); i++) {
+            sorted_indices[i] = indices[sorted_subset_indices[i]];
+            sorted_timestamps[i] = timestamps[sorted_subset_indices[i]];
+        }
+
+        pr = SubsetPointRange<T, Point>(points, sorted_indices);
+        this->timestamps = sorted_timestamps;
+    }
+
+    /* internal method to centralize exhaustive search logic
+    
+    range is of the form (start, length) */
+    inline void _index_range_knn(Point* query, index_type out*, size_t k, std::pair<index_type, index_type> range) const {
+        // for the sake of avoiding overhead from nested parallelism, we will compute distances serially
+        parlay::sequence<std::pair<float, index_type>> distances = parlay::sequence<std::pair<float, index_type>>(range.second);
+
+        for (index_type i = range.first; i < range.first + range.second; i++) {
+            distances[i] = std::make_pair(query.distance(pr[i]), i);
+        }
+
+        std::sort(distances.begin(), distances.end()); // technically a top k = 100 but we'll just sort the whole thing
+
+        for (size_t i = 0; i < k; i++) {
+            out[i] = distances[i].second;
+        }
+    }
+
+    override void knn(Point* query, index_type* out, size_t k) const {
+        _index_range_knn(query, out, k, std::make_pair(0, pr.size()));
+    }
+
+    override void range_knn(Point* query, index_type* out, std::pair<float, float> endpoints, size_t k) const {
+        // we will need to do a binary search to find the start and end of the range
+        index_type start = 0; // start is the index of the first element geq endpoints.first
+        index_type end = pr.size(); // end is the index of the last element leq endpoints.second
+
+        index_type l = 0;
+        index_type r = pr.size();
+
+        while (l < r) {
+            index_type m = (l + r) / 2;
+            if (this->timestamps[m] < endpoints.first) {
+                l = m + 1;
+            } else {
+                r = m;
+            }
+        }
+        start = l;
+
+        l = 0;
+        r = pr.size();
+
+        while (l < r) {
+            index_type m = (l + r) / 2;
+            if (this->timestamps[m] <= endpoints.second) {
+                l = m + 1;
+            } else {
+                r = m;
+            }
+        }
+        end = l;
+
+        _range_knn(query, out, k, std::make_pair(start, end - start));
+    }
+
+};
