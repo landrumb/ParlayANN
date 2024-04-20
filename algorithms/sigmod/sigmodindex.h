@@ -200,11 +200,16 @@ public:
             std::cout << "Ran " << query_type_count[0] << " big queries in " << big_time << " seconds (QPS: " << query_type_count[0] / big_time << ")" << std::endl;
 
             // run range queries
-            parlay::parallel_for(query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], [&](index_type i) {
+            /*parlay::parallel_for(query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];
                 Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
                 big_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
-            });
+            });*/
+            for (int i = query_type_count[0] + query_type_count[1]; i < query_type_count[0] + query_type_count[1] + query_type_count[2]; i++) {
+                auto [query_type, category, start, end, index] = queries[i];
+                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                big_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+            }
 
             double range_time = t.next_time();
             std::cout << "Ran " << query_type_count[2] << " range queries in " << range_time << " seconds (QPS: " << query_type_count[2] / range_time << ")" << std::endl;

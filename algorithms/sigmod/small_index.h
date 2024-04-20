@@ -20,7 +20,7 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
              parlay::sequence<float>& timestamps,
              parlay::sequence<index_type>& indices) override {
         // before creating the pointrange we want to argsort the indices by timestamp
-        parlay::sequence<index_type> sorted_subset_indices = parlay::sequence<index_type>(indices.size());
+        auto sorted_subset_indices = parlay::sequence<index_type>::from_function(indices.size(), [] (size_t i) { return i; });
 
         std::sort(sorted_subset_indices.begin(), sorted_subset_indices.end(),
                   [&timestamps](index_type i, index_type j) {
@@ -73,16 +73,14 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         index_type start = 0; // start is the index of the first element geq endpoints.first
         index_type end = pr.size(); // end is the index of the last element leq endpoints.second
 
+        // TODO: possible optimization - lazy binary search
         index_type l = 0;
         index_type r = pr.size();
 
         while (l < r) {
             index_type m = (l + r) / 2;
-            if (this->timestamps[m] < endpoints.first) {
-                l = m + 1;
-            } else {
-                r = m;
-            }
+            if (timestamps[m] < endpoints.first) l = m + 1;
+            else r = m;
         }
         start = l;
 
@@ -91,11 +89,8 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
 
         while (l < r) {
             index_type m = (l + r) / 2;
-            if (this->timestamps[m] <= endpoints.second) {
-                l = m + 1;
-            } else {
-                r = m;
-            }
+            if (timestamps[m] <= endpoints.second) l = m + 1;
+            else r = m;
         }
         end = l;
 
