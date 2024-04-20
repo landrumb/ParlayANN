@@ -10,15 +10,15 @@
 using index_type = uint32_t;
 
 template <typename T, typename Point>
-struct NaiveIndex : public VirtualIndex<Point> {
-    SubsetPointRange<T, Point> pr; // this will need to change if we collect copies of the vectors
+struct NaiveIndex : public VirtualIndex<T, Point> {
+    SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t> pr; // this will need to change if we collect copies of the vectors
     parlay::sequence<float> timestamps;
 
     NaiveIndex() = default;
 
     void fit(PointRange<T, Point>& points,
              parlay::sequence<float>& timestamps,
-             parlay::sequence<index_type>& indices) {
+             parlay::sequence<index_type>& indices) override {
         // before creating the pointrange we want to argsort the indices by timestamp
         parlay::sequence<index_type> sorted_subset_indices = parlay::sequence<index_type>(indices.size());
 
@@ -35,12 +35,12 @@ struct NaiveIndex : public VirtualIndex<Point> {
             sorted_timestamps[i] = timestamps[sorted_subset_indices[i]];
         }
 
-        pr = SubsetPointRange<T, Point>(points, sorted_indices);
+        pr = SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>(points, sorted_indices);
         this->timestamps = sorted_timestamps;
     }
 
     void fit(PointRange<T, Point>& points,
-             parlay::sequence<float>& timestamps) {
+             parlay::sequence<float>& timestamps) override {
         auto indices = parlay::tabulate(points.size(), [](index_type i) { return i; });
 
         fit(points, timestamps, indices);
