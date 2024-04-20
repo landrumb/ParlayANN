@@ -62,7 +62,7 @@ public:
     parlay::sequence<float> timestamps; // the timestamp for each point
 
     BigIndex big_index;
-    std::unique_ptr<VirtualIndex<Point>[]> categorical_indices;
+    std::unique_ptr<VirtualIndex<T, Point>[]> categorical_indices;
 
     /* probably want to do something real here, but not real init */
     SigmodIndex() {};
@@ -106,7 +106,7 @@ public:
 		init_categorical_indices();
 		std::cout << "Built small indices in " << t.next_time() << " seconds" << std::endl;
 
-        big_index.fit(points, labels, timestamps);
+        big_index.fit(points, timestamps);
         std::cout << "Built big index in " << t.next_time() << " seconds" << std::endl;
     }
 
@@ -127,7 +127,8 @@ public:
         file.read((char*)&num_queries, sizeof(uint32_t));
 
         // where we pack the queries in the order we read them
-        T* query_vectors = std::aligned_alloc(64, num_queries * ALIGNED_DIM * sizeof(T));
+        T* query_vectors = static_cast<T*>(std::aligned_alloc(64, num_queries * ALIGNED_DIM * sizeof(T)));
+
         Query* queries = new Query[num_queries];
         
         int query_type_count[4] = {0, 0, 0, 0}; // will be annoying if parallelized
@@ -153,7 +154,8 @@ public:
         std::cout << "Read queries in " << t.next_time() << " seconds" << std::endl;
 
         // this should be lexocographic sort over the strategically ordered Query tuple
-        parlay::sort_inplace(queries, queries + num_queries);
+        // should be parallel but am putting off remembering how slice initialization works
+        std::sort(queries, queries + num_queries);
 
         std::cout << "Sorted queries in " << t.next_time() << " seconds" << std::endl;
 
@@ -186,7 +188,7 @@ public:
             // interpretable query code that is probably a wee bit slower end to end
             // order should probably be big->range->categorical->categorical range
             // or even better big->range->categorical+categorical range
-            
+
             // run big queries
             parlay::parallel_for(0, query_type_count[0], [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];

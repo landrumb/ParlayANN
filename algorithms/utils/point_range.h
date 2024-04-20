@@ -49,7 +49,10 @@ long dim_round_up(long dim, long tp_size){
   else return ((qt+1)*64)/tp_size;
 }
 
-template<typename T, class Point, class PR>
+template<typename T, class Point>
+struct PointRange;
+
+template<typename T, class Point, class PR = PointRange<T, Point>, typename index_type = int32_t>
 struct SubsetPointRange;
 
 template<typename T, class Point>
@@ -151,11 +154,12 @@ private:
 
   Note that when indexing into the subset, the indices are relative to the included points, not the actual indices of the points in the original PointRange
  */
-template<typename T, class Point, class PR = PointRange<T, Point>>
+// template<typename T, class Point, class PR = PointRange<T, Point>, typename index_type = int32_t>
+template<typename T, class Point, class PR, typename index_type>
 struct SubsetPointRange {
     PR *pr = nullptr;
-    parlay::sequence<int32_t> subset;
-    std::unordered_map<int32_t, int32_t> real_to_subset;
+    parlay::sequence<index_type> subset;
+    std::unordered_map<index_type, index_type> real_to_subset;
     size_t n;
     unsigned int dims;
     unsigned int aligned_dims;
@@ -166,26 +170,26 @@ struct SubsetPointRange {
 
     SubsetPointRange() {}
 
-    SubsetPointRange(PR &pr, parlay::sequence<int32_t> subset) : pr(&pr), subset(subset) {
+    SubsetPointRange(PR &pr, parlay::sequence<index_type> subset) : pr(&pr), subset(subset) {
       n = subset.size();
       dims = pr.dimension();
       aligned_dims = pr.aligned_dimension();
 
-      real_to_subset = std::unordered_map<int32_t, int32_t>();
+      real_to_subset = std::unordered_map<index_type, index_type>();
       real_to_subset.reserve(n);
-      for(int32_t i=0; i<n; i++) {
+      for(index_type i=0; i<n; i++) {
         real_to_subset[subset[i]] = i;
       }
     }
 
-    SubsetPointRange(PR *pr, parlay::sequence<int32_t> subset) : pr(pr), subset(subset) {
+    SubsetPointRange(PR *pr, parlay::sequence<index_type> subset) : pr(pr), subset(subset) {
       n = subset.size();
       dims = pr->dimension();
       aligned_dims = pr->aligned_dimension();
 
-      real_to_subset = std::unordered_map<int32_t, int32_t>();
+      real_to_subset = std::unordered_map<index_type, index_type>();
       real_to_subset.reserve(n);
-      for(int32_t i=0; i<n; i++) {
+      for(index_type i=0; i<n; i++) {
         real_to_subset[subset[i]] = i;
       }
     }
@@ -194,14 +198,14 @@ struct SubsetPointRange {
     SubsetPointRange(T* values, size_t n, unsigned int dims){
       heap_point_range = std::make_unique<PointRange<T, Point>>(values, n, dims);
       pr = heap_point_range.get();
-      subset = parlay::tabulate(n, [&] (int32_t i) {return i;});
+      subset = parlay::tabulate(n, [&] (index_type i) {return i;});
       this->n = n;
       this->dims = dims;
       aligned_dims = pr->aligned_dimension();
       
-      real_to_subset = std::unordered_map<int32_t, int32_t>();
+      real_to_subset = std::unordered_map<index_type, index_type>();
       real_to_subset.reserve(n);
-      for(int32_t i=0; i<n; i++) {
+      for(index_type i=0; i<n; i++) {
         real_to_subset[subset[i]] = i;
       }
     }
@@ -255,11 +259,11 @@ struct SubsetPointRange {
     long dimension() const {return dims;}
     long aligned_dimension() const {return aligned_dims;}
 
-    int32_t real_index(int32_t i) const {
+    index_type real_index(index_type i) const {
       return subset[i];
     }
 
-    int32_t subset_index(int32_t i) const {
+    index_type subset_index(index_type i) const {
       // return real_to_subset.at(i);
       return std::find(subset.begin(), subset.end(), i) - subset.begin();
     }
@@ -267,8 +271,8 @@ struct SubsetPointRange {
     /* creates a subset of this subset without causing a chain of redirects every access
     
     subset should be provided with indices relative to the full dataset */
-    std::unique_ptr<SubsetPointRange<T, Point, PR>> make_subset(parlay::sequence<int32_t> subset) {
-      // parlay::sequence<int32_t> nonlocal_subset = parlay::map(subset, [&] (int32_t i) {return this->subset[i];});
+    std::unique_ptr<SubsetPointRange<T, Point, PR>> make_subset(parlay::sequence<index_type> subset) {
+      // parlay::sequence<index_type> nonlocal_subset = parlay::map(subset, [&] (index_type i) {return this->subset[i];});
       return std::make_unique<SubsetPointRange<T, Point, PR>>(this->pr, subset);
     }
 
