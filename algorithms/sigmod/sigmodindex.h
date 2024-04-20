@@ -235,14 +235,14 @@ public:
     }
 
 private:
-	void init_categorical_indices() {
-		auto vectors_by_label = parlay::sequence<parlay::sequence<uint32_t>>(max_label + 1);
-		auto timestamps_by_label = parlay::sequence<parlay::sequence<float>>(max_label + 1);
+    void init_categorical_indices() {
+        auto vectors_by_label = parlay::sequence<parlay::sequence<uint32_t>>(max_label + 1);
+        auto timestamps_by_label = parlay::sequence<parlay::sequence<float>>(max_label + 1);
 
-		for (int i = 0; i < points.size(); i++) {
-			vectors_by_label[labels[i]].push_back(i);
-			timestamps_by_label[labels[i]].push_back(timestamps[i]);
-		}
+        for (int i = 0; i < points.size(); i++) {
+            vectors_by_label[labels[i]].push_back(i);
+            timestamps_by_label[labels[i]].push_back(timestamps[i]);
+        }
 
         categorical_indices = parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>>::uninitialized(max_label + 1);
 
