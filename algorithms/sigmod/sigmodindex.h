@@ -253,6 +253,7 @@ private:
             categorical_indices[i]->fit(points, timestamps_by_label[i], vectors_by_label[i]);
         });*/
         for (int i = 0; i < categorical_indices.size(); i++) {
+            std::cout << i << std::endl;
             if (i == 200) {
                 std::cout << "here" << std::endl;
             }
