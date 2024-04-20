@@ -51,6 +51,7 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
     range is of the form (start, length) */
     inline void _index_range_knn(Point& query, index_type* out, size_t k, std::pair<index_type, index_type> range) const {
         if (range.second < k) {
+            std::cout << "Range of length " + std::to_string(range.second) + " too small for k = " + std::to_string(k) << std::endl;
             throw std::runtime_error("Range too small for k");
         }
 
