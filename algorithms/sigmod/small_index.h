@@ -47,6 +47,13 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         fit(points, timestamps, indices);
     }
 
+    void copyless_fit(PointRange<T, Point>& points,
+                      parlay::sequence<float>& timestamps,
+                      parlay::sequence<index_type>& indices) {
+        pr = SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>(points, indices, false);
+        this->timestamps = std::move(timestamps);
+    }
+
     /* internal method to centralize exhaustive search logic
     
     range is of the form (start, length) */
