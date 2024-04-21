@@ -1,4 +1,4 @@
-TARGETS = profile_labels profile_timestamps query measure_recall
+TARGETS = query measure_recall
 INCLUDE = ../../parlaylib/include
 REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../utils/NSGDist.h ../utils/parse_results.h ../utils/graph.h ../utils/point_range.h small_index.h big_index.h
 
