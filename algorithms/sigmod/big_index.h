@@ -21,7 +21,7 @@ const QueryParams default_query_params = QueryParams(100, 150, 0.9, 1000, 100);
 template<typename T, typename Point>
 struct VamanaIndex : public VirtualIndex<T, Point> {
     NaiveIndex<T, Point> naive_index;
-    Graph<index_type> graph;
+    Graph<index_type> G;
 
     VamanaIndex() = default;
 
