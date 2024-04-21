@@ -65,6 +65,8 @@ public:
     BigIndex big_index;
     parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>> categorical_indices;
 
+    size_t cutoff = 10'000;
+
     /* probably want to do something real here, but not real init */
     SigmodIndex() {};
 
@@ -246,9 +248,15 @@ private:
         }
 
         categorical_indices = parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>>::from_function(max_label + 1, [&] (size_t i) {
-            auto ptr = std::make_unique<SmallIndex>();
-            ptr->fit(points, timestamps_by_label[i], vectors_by_label[i]);
-            return ptr;
+            if (vectors_by_label[i].size() > cutoff) {
+                std::unique_ptr<VirtualIndex<T, Point>> ptr = std::make_unique<BigIndex>();
+                ptr->fit(points, timestamps_by_label[i], vectors_by_label[i]);
+                return ptr;
+            } else {
+                std::unique_ptr<VirtualIndex<T, Point>> ptr = std::make_unique<SmallIndex>();
+                ptr->fit(points, timestamps_by_label[i], vectors_by_label[i]);
+                return ptr;
+            }
         });
     }
 };

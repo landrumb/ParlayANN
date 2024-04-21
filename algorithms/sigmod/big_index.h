@@ -30,7 +30,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
              parlay::sequence<index_type>& indices) override {
         naive_index.fit(points, timestamps, indices);
 
-        G = Graph<index_type>(default_build_params.R, points.size());
+        G = Graph<index_type>(default_build_params.R, indices.size());
 
         knn_index<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, uint32_t> I(default_build_params);
 
