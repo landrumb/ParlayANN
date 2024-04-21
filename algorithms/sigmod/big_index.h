@@ -19,7 +19,7 @@ BuildParams default_build_params = BuildParams(200, 32, 1.175);
 QueryParams default_query_params = QueryParams(100, 150, 0.9, 1000, 100);
 
 
-const int exhaustive_fallback_cutoff = 500;
+const int exhaustive_fallback_cutoff = 1000;
 
 template<typename T, typename Point>
 struct VamanaIndex : public VirtualIndex<T, Point> {
@@ -68,8 +68,10 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             return;
         } else { // otherwise we use overretrieval
             QueryParams qp = default_query_params;
-            qp.k = static_cast<int>(qp.k * (endpoints.second - endpoints.first) * 1.44);
-
+            qp.k = static_cast<int>((qp.k / (endpoints.second - endpoints.first)) * 1.44);
+            qp.beamSize = static_cast<int>((qp.beamSize / (endpoints.second - endpoints.first)) * 1.44);
+            qp.limit = static_cast<int>((qp.limit / (endpoints.second - endpoints.first)) * 1.44);
+ 
             auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0, qp);
 
             auto frontier = pairElts.first;
@@ -87,7 +89,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             }
 
             if (found < k) {
-                std::cout << "Warning: not enough points in range" << std::endl;
+                // std::cout << "Warning: not enough points in range" << std::endl;
             }
 
         }
