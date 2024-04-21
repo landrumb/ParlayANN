@@ -65,6 +65,8 @@ public:
     BigIndex big_index;
     parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>> categorical_indices;
 
+    double qps_per_case[4] = {0., 0., 0., 0.};
+
     size_t cutoff = 10'000;
 
     /* probably want to do something real here, but not real init */
@@ -200,6 +202,7 @@ public:
             });
 
             double big_time = t.next_time();
+            qps_per_case[0] = query_type_count[0] / big_time;
             std::cout << "Ran " << query_type_count[0] << " big queries in " << big_time << " seconds (QPS: " << query_type_count[0] / big_time << ")" << std::endl;
 
             // run range queries
@@ -210,6 +213,7 @@ public:
             });
 
             double range_time = t.next_time();
+            qps_per_case[2] = query_type_count[2] / range_time;
             std::cout << "Ran " << query_type_count[2] << " range queries in " << range_time << " seconds (QPS: " << query_type_count[2] / range_time << ")" << std::endl;
 
             // run categorical queries
@@ -220,6 +224,7 @@ public:
             });
 
             double categorical_time = t.next_time();
+            qps_per_case[1] = query_type_count[1] / categorical_time;
             std::cout << "Ran " << query_type_count[1] << " categorical queries in " << categorical_time << " seconds (QPS: " << query_type_count[1] / categorical_time << ")" << std::endl;
 
             // run categorical range queries
@@ -230,6 +235,7 @@ public:
             });
 
             double categorical_range_time = t.next_time();
+            qps_per_case[3] = query_type_count[3] / categorical_range_time;
             std::cout << "Ran " << query_type_count[3] << " categorical range queries in " << categorical_range_time << " seconds (QPS: " << query_type_count[3] / categorical_range_time << ")" << std::endl;
 
         #endif
