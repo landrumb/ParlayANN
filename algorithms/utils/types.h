@@ -75,8 +75,8 @@ struct groundTruth{
 
 
 struct BuildParams{
-  long L; //vamana
   long R; //vamana and pynnDescent
+  long L; //vamana
   double alpha; //vamana and pyNNDescent
 
   long num_clusters; // HCNNG and pyNNDescent
