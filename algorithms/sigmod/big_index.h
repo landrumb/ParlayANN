@@ -46,15 +46,17 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         fit(points, timestamps, indices);
     }
 
-    void knn(Point& query, index_type* out, size_t k) const override {
+    void knn(Point& query, index_type* out, size_t k) override {
         auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0,default_query_params);
 
+        auto frontier = pairElts.first;
+
         for (size_t i = 0; i < k; i++) {
-            out[i] = naive_index.pr.real_index(pairElts[i].second);
+            out[i] = naive_index.pr.real_index(frontier[i].second);
         }
     }
 
-    void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) const override {
+    void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
         naive_index.range_knn(query, out, endpoints, k);
     }
 };

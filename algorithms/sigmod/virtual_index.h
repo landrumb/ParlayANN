@@ -22,8 +22,8 @@ class VirtualIndex {
              parlay::sequence<float>& timestamps) = 0;
     /* Unfiltered knn query, where out is a pointer to where the indices of the neighbors should be written
     (this saves us a copy and some allocations over returning a sequence) */
-    virtual void knn(Point& query, index_type* out, size_t k) const = 0;
+    virtual void knn(Point& query, index_type* out, size_t k)  = 0;
     /* Range-filtered knn query */
-    virtual void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) const = 0;
+    virtual void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) = 0;
 
 };
