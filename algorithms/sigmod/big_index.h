@@ -16,7 +16,7 @@
 BuildParams default_build_params = BuildParams(500, 64, 1.175);
 
 // k, beam size, cut, limit, degree limit
-QueryParams default_query_params = QueryParams(100, 1000, 1.35, 10000000, 64);
+QueryParams default_query_params = QueryParams(100, 500, 1.35, 10000000, 64);
 
 template<typename T, typename Point>
 struct VamanaIndex : public VirtualIndex<T, Point> {
@@ -52,7 +52,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         auto frontier = pairElts.first;
 
         for (size_t i = 0; i < k; i++) {
-            out[i] = naive_index.pr.real_index(frontier[i].second);
+            out[i] = naive_index.pr.real_index(frontier[i].first);
         }
     }
 
