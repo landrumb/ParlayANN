@@ -25,8 +25,6 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
 
     VamanaIndex() = default;
 
-    void train_graph()
-
     void fit(PointRange<T, Point>& points,
              parlay::sequence<float>& timestamps,
              parlay::sequence<index_type>& indices) override {
@@ -36,7 +34,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
 
         knn_index<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>> I(default_build_params);
 
-        stats<index_type> BuildStats(this->points.size());
+        stats<index_type> BuildStats(points.size());
 
         I.build_index(G, naive_index.pr, BuildStats);
     }
