@@ -35,8 +35,8 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
     NaiveIndex<T, Point> naive_index;
     Graph<index_type> G;
 
-    parlay::sequence<parlay::sequence<VirtualIndex<T, Point>*>> window_indices;
-    parlay::sequence<parlay::sequence<std::pair<float, float>>> window_bounds;
+    std::unique_ptr<VamanaIndex<T, Point>> left = nullptr;
+    std::unique_ptr<VamanaIndex<T, Point>> right = nullptr;
 
     VamanaIndex() = default;
 
