@@ -7,8 +7,8 @@
 #define K 100
 
 int main(int argc, char **argv) {
-    if (argc < 4) {
-        std::cout << "Usage: " << argv[0] << " <output file> <groundtruth file> <query file>" << std::endl;
+    if (argc < 3) {
+        std::cout << "Usage: " << argv[0] << " <output file> <groundtruth file> <optional query file>" << std::endl;
         return 0;
     }
 
@@ -21,8 +21,10 @@ int main(int argc, char **argv) {
         throw std::runtime_error("Unable to open file " + std::string(argv[2]));
     }
     std::ifstream query_reader(argv[3]);
-    if (!query_reader.is_open()) {
-        throw std::runtime_error("Unable to open file " + std::string(argv[3]));
+    if (argc > 3) {
+        if (!query_reader.is_open()) {
+            throw std::runtime_error("Unable to open file " + std::string(argv[3]));
+        }
     }
 
     out_reader.seekg(0, out_reader.end);
@@ -42,34 +44,43 @@ int main(int argc, char **argv) {
 
     uint32_t problem_type_count[4] = {0, 0, 0, 0};
     uint32_t correct_count[4] = {0, 0, 0, 0};
-    query_reader.ignore(4);
+    if (argc > 3) {
+        query_reader.ignore(4);
+    }
 
     uint32_t out_buffer[K];
     uint32_t gt_buffer[K];
     uint64_t total_correct = 0;
     for (int i = 0; i < num_queries; i++) {
         uint32_t problem_type;
-        float problem_type_buffer;
-        query_reader.read((char*)&problem_type_buffer, sizeof(uint32_t));
-        query_reader.ignore(103 * sizeof(uint32_t));
-        problem_type = (uint32_t)problem_type_buffer;
-        assert(problem_type < 4);
-        problem_type_count[problem_type]++;
+        if (argc > 3) {
+            float problem_type_buffer;
+            query_reader.read((char*)&problem_type_buffer, sizeof(uint32_t));
+            query_reader.ignore(103 * sizeof(uint32_t));
+            problem_type = (uint32_t)problem_type_buffer;
+            assert(problem_type < 4);
+            problem_type_count[problem_type]++;
+        }
+
         out_reader.read((char*)&out_buffer[0], K * sizeof(uint32_t));
         gt_reader.read((char*)&gt_buffer[0], K * sizeof(uint32_t));
         for (int j = 0; j < K; j++) {
             for (int k = 0; k < K; k++) {
                 if (out_buffer[j] == gt_buffer[k]) {
                     total_correct++;
-                    correct_count[problem_type]++;
+                    if (argc > 3) {
+                        correct_count[problem_type]++;
+                    }
                     break;
                 }
             }
         }
     }
 
-    for (int i = 0; i < 4; i++) {
-        std::cout << "Recall for problems of type " << i << ": " << (double)correct_count[i] / (problem_type_count[i] * K) << std::endl;
+    if (argc > 3) {
+        for (int i = 0; i < 4; i++) {
+            std::cout << "Recall for problems of type " << i << ": " << (double)correct_count[i] / (problem_type_count[i] * K) << std::endl;
+        }
     }
 
     std::cout << "Total recall: " << (double)total_correct / (num_queries * K) << std::endl;
