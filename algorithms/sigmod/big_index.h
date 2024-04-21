@@ -25,10 +25,20 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
 
     VamanaIndex() = default;
 
+    void train_graph()
+
     void fit(PointRange<T, Point>& points,
              parlay::sequence<float>& timestamps,
              parlay::sequence<index_type>& indices) override {
         naive_index.fit(points, timestamps, indices);
+
+        G = Graph<index_type>(points.size());
+
+        knn_index<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>> I(default_build_params);
+
+        stats<index_type> BuildStats(this->points.size());
+
+        I.build_index(G, naive_index.pr, BuildStats);
     }
 
     void fit(PointRange<T, Point>& points,
@@ -39,7 +49,11 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
     }
 
     void knn(Point& query, index_type* out, size_t k) const override {
-        naive_index.knn(query, out, k);
+        auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0,default_query_params);
+
+        for (size_t i = 0; i < k; i++) {
+            out[i] = naive_index.pr.real_index(pairElts[i].second);
+        }
     }
 
     void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) const override {
