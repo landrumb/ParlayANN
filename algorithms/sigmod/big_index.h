@@ -12,11 +12,11 @@
 #include <algorithm>
 #include <iostream>
 
-// limit, degree, alpha
-BuildParams default_build_params = BuildParams(200, 64, 1.175);
+// R, L, alpha
+BuildParams default_build_params = BuildParams(500, 64, 1.175);
 
 // k, beam size, cut, limit, degree limit
-QueryParams default_query_params = QueryParams(100, 200, 1.35, 100000, 64);
+QueryParams default_query_params = QueryParams(100, 1000, 1.35, 10000000, 64);
 
 template<typename T, typename Point>
 struct VamanaIndex : public VirtualIndex<T, Point> {
