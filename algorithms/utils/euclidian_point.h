@@ -106,7 +106,7 @@ struct Euclidian_Point {
 
   T* get() {return const_cast<T*>(values);}
 
-private:
+// private:
   const T* values;
   unsigned int d;
   unsigned int aligned_d;

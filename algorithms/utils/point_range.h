@@ -105,15 +105,20 @@ struct PointRange{
   
   I would make a constructor which takes a numpy array but I don't want a pybind dependency in this file
   */
-  PointRange(T* values, size_t n, unsigned int dims){
+  PointRange(T* values, size_t n, unsigned int dims, bool trust = false){
     this->n = n;
     this->dims = dims;
     aligned_dims = dim_round_up(dims, sizeof(T));
-    if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
-    this->values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
-    parlay::parallel_for(0, n, [&] (size_t i){
-      std::memcpy(this->values + i*aligned_dims, values + i*dims, dims*sizeof(T));
-    });
+
+    if (!trust) {
+      if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
+      this->values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+      parlay::parallel_for(0, n, [&] (size_t i){
+        std::memcpy(this->values + i*aligned_dims, values + i*dims, dims*sizeof(T));
+      });
+    } else {
+      this->values = values; // unpleasant this is probably never freed
+    }
   }
 
   std::unique_ptr<SubsetPointRange<T, Point, PointRange<T, Point>>> make_subset(parlay::sequence<int32_t> subset) {
@@ -163,6 +168,7 @@ struct SubsetPointRange {
     size_t n;
     unsigned int dims;
     unsigned int aligned_dims;
+    bool collated = false;
 
     // in dire circumstances, we will want to initialize a subset point range which is actually a normal point range. This is a hack to allow that. If only there was a feature of OOP which would obviate this...
     // the unique ptr just protects us from a memory leak
@@ -170,7 +176,7 @@ struct SubsetPointRange {
 
     SubsetPointRange() {}
 
-    SubsetPointRange(PR &pr, parlay::sequence<index_type> subset) : pr(&pr), subset(subset) {
+    SubsetPointRange(PR &pr, parlay::sequence<index_type> subset, bool collate = false) : pr(&pr), subset(subset), collated(collate) {
       n = subset.size();
       dims = pr.dimension();
       aligned_dims = pr.aligned_dimension();
@@ -180,9 +186,21 @@ struct SubsetPointRange {
       for(index_type i=0; i<n; i++) {
         real_to_subset[subset[i]] = i;
       }
+
+      if (collate) {
+        // make heap point range where the values are contiguous and in the same order as indices
+        T* values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+        parlay::parallel_for(0, n, [&] (size_t i){
+          std::memcpy(values + i*aligned_dims, pr[subset[i]].values, aligned_dims*sizeof(T));
+        });
+        heap_point_range = std::make_unique<PointRange<T, Point>>(values, n, dims, true);
+
+        // update pr to point to the heap_point_range
+        this->pr = heap_point_range.get();
+      }
     }
 
-    SubsetPointRange(PR *pr, parlay::sequence<index_type> subset) : pr(pr), subset(subset) {
+    SubsetPointRange(PR *pr, parlay::sequence<index_type> subset, bool collate = false) : pr(pr), subset(subset), collated(collate) {
       n = subset.size();
       dims = pr->dimension();
       aligned_dims = pr->aligned_dimension();
@@ -191,6 +209,18 @@ struct SubsetPointRange {
       real_to_subset.reserve(n);
       for(index_type i=0; i<n; i++) {
         real_to_subset[subset[i]] = i;
+      }
+
+      if (collate) {
+        // make heap point range where the values are contiguous and in the same order as indices
+        T* values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+        parlay::parallel_for(0, n, [&] (size_t i){
+          std::memcpy(values + i*aligned_dims, pr[subset[i]].values, aligned_dims*sizeof(T));
+        });
+        heap_point_range = std::make_unique<PointRange<T, Point>>(values, n, dims, true);
+
+        // update pr to point to the heap_point_range
+        this->pr = heap_point_range.get();
       }
     }
 
@@ -218,7 +248,8 @@ struct SubsetPointRange {
           n(std::exchange(other.n, 0)),
           dims(std::exchange(other.dims, 0)),
           aligned_dims(std::exchange(other.aligned_dims, 0)),
-          heap_point_range(std::move(other.heap_point_range)) {}
+          heap_point_range(std::move(other.heap_point_range)),
+          collated(other.collated) {}
 
     // Move assignment operator
     SubsetPointRange& operator=(SubsetPointRange&& other) noexcept {
@@ -230,6 +261,7 @@ struct SubsetPointRange {
             dims = std::exchange(other.dims, 0);
             aligned_dims = std::exchange(other.aligned_dims, 0);
             heap_point_range = std::move(other.heap_point_range);
+            collated = other.collated;
         }
         return *this;
     }
@@ -242,7 +274,8 @@ struct SubsetPointRange {
           n(other.n),
           dims(other.dims),
           aligned_dims(other.aligned_dims),
-          heap_point_range(nullptr) {  // Do not take ownership of the heap_point_range
+          heap_point_range(nullptr),
+          collated(collated) {  // Do not take ownership of the heap_point_range
         if (other.heap_point_range != nullptr) {
             // Instead of copying the unique_ptr, just copy the raw pointer to maintain a shallow copy.
             // This is a deliberate choice to avoid ownership transfer of heap_point_range.
@@ -253,7 +286,11 @@ struct SubsetPointRange {
     size_t size() const { return n; }
   
     Point operator [] (const long i) const {
-      return (*pr)[subset[i]];
+      if (collated) {
+        return (*pr)[i];
+      } else {
+        return (*pr)[subset[i]];
+      }
     }
 
     long dimension() const {return dims;}
