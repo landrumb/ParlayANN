@@ -33,6 +33,8 @@
 #define ALIGNED_DIM 112 
 #define K 100 // number of neighbors to return
 
+#define DEFAULT_CUTOFF 10'000
+
 using index_type = uint32_t;
 using T = float;
 using Point = Euclidian_Point<T>;
@@ -67,7 +69,7 @@ public:
 
     double qps_per_case[4] = {0., 0., 0., 0.};
 
-    size_t cutoff = 10'000;
+    size_t cutoff = DEFAULT_CUTOFF;
 
     /* probably want to do something real here, but not real init */
     SigmodIndex() {};
