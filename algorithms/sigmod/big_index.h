@@ -22,6 +22,16 @@ QueryParams default_query_params = QueryParams(100, 500, 1.35, 10000000, 100);
 
 
 const float exhaustive_fallback_cutoff = 0.25;
+void set_default_build_params(long R, long L, double alpha) {
+    default_build_params = BuildParams(R, L, alpha);
+}
+
+void set_default_query_params(long k, long beamSize, double cut, long limit, long degree_limit) {
+    default_query_params = QueryParams(k, beamSize, cut, limit, degree_limit);
+}
+
+
+const float exhaustive_fallback_cutoff = 0.375;
 
 template<typename T, typename Point>
 struct VamanaIndex : public VirtualIndex<T, Point> {
