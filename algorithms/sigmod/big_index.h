@@ -21,7 +21,7 @@ BuildParams default_build_params = BuildParams(500, 64, 1.175);
 QueryParams default_query_params = QueryParams(100, 500, 1.35, 10000000, 100);
 
 
-const float exhaustive_fallback_cutoff = 0.375;
+const float exhaustive_fallback_cutoff = 0.25;
 
 template<typename T, typename Point>
 struct VamanaIndex : public VirtualIndex<T, Point> {
