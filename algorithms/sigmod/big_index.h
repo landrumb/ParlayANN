@@ -32,7 +32,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
 
         G = Graph<index_type>(points.size());
 
-        knn_index<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>> I(default_build_params);
+        knn_index<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, uint32_t> I(default_build_params);
 
         stats<index_type> BuildStats(points.size());
 
