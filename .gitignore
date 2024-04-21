@@ -12,4 +12,5 @@ python/tmp_index_cache
 
 *.swp
 *.txt
+*.bin
 algorithms/sigmod/output/*
