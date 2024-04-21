@@ -127,7 +127,7 @@ struct knn_index {
     }
     start_point = inserts[0];
 
-    batch_insert(inserts, G, Points, BuildStats, true, 2, .02);
+    batch_insert(inserts, G, Points, BuildStats, true, 2, .02, false);
     parlay::parallel_for (0, G.size(), [&] (long i) {
       auto less = [&] (indexType j, indexType k) {
 		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
@@ -306,9 +306,11 @@ struct knn_index {
       t_prune.stop();
       inc += 1;
     }
-    t_beam.total();
-    t_bidirect.total();
-    t_prune.total();
+    if (print) {
+        t_beam.total();
+        t_bidirect.total();
+        t_prune.total();
+    }
   }
 
   void batch_insert(indexType p, Graph<indexType> &G) {
