@@ -120,19 +120,24 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         }
     }
 
+    // returns the number of nearest neighbors found
+    // out and dists are for outputting the indexes and distances of the k-closest
+    // [left_end, right_end) indicates the range of indices within the desired timestamps
+    // min_time and max_time are the timestamps of the queried range (inclusive)
     size_t _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) override {
         float range_percentage = (float)(right_end - left_end) / G.size();
 
+        // if the range is large, do overretrieval instead of recursing to children
         if (range_percentage > overretrieval_cutoff) {
             QueryParams qp = default_query_params;
             qp.k = qp.beamSize;
-            //qp.limit = static_cast<int>(qp.limit / (endpoints.second - endpoints.first));
+            qp.limit = static_cast<int>(qp.limit / (endpoints.second - endpoints.first));
  
             auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0, qp);
 
             auto frontier = pairElts.first;
 
-            // filter to the points which are in the range
+            // filter for the points which are in the time range
             int found = 0;
             for (size_t i = 0; i < frontier.size() && found < k; i++) {
                 if (naive_index.timestamps[frontier[i].first] >= min_time && naive_index.timestamps[frontier[i].first] <= max_time) {
@@ -143,9 +148,11 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             }
             return found;
         } else {
+            // if this is the bottom level, query the naive index
             if (left == nullptr || right == nullptr) {
                 return naive_index._range_knn(query, out, dists, left_end, right_end, min_time, max_time, k);
             }
+            // if the desired range is split between the children, query both and then merge the results
             if (left_end < mid && right_end > mid) {
                 auto left_out = parlay::sequence<index_type>::uninitialized(k);
                 auto left_dists = parlay::sequence<float>::uninitialized(k);
@@ -154,12 +161,14 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
 
                 size_t left_found, right_found;
 
+                // query the left and right children in parallel
                 parlay::par_do([&] () {
                     left_found = left->_range_knn(query, &left_out[0], &left_dists[0], left_end, mid, min_time, max_time, k);
                 }, [&] () {
                     right_found = right->_range_knn(query, &right_out[0], &right_dists[0], 0, right_end - mid, min_time, max_time, k);
                 });
 
+                // merge the returned nearest neighbor lists (they're expected to be sorted by distance already)
                 size_t i = 0, j = 0, found = 0;
                 while (i < left_found && j < right_found && found < k) {
                     if (left_dists[i] < right_dists[j]) {
@@ -185,15 +194,19 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
                 }
                 return found;
             }
+            // if the range is entirely in the left child, just recurse into the left child
             else if (left_end < mid) {
                 return left->_range_knn(query, out, dists, left_end, right_end, min_time, max_time, k);
             }
+            // if the range is entirely in the right child, just recurse into the right child
             else {
                 return right->_range_knn(query, out, dists, left_end - mid, right_end - mid, min_time, max_time, k);
             }
         }
     }
 
+    // wrapper function for _range_knn
+    // binary searches for the index endpoints based on the provided timestamp endpoints, then call _range_knn
     void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
         index_type start = 0;
         index_type end = naive_index.pr.size();
