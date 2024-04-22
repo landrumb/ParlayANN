@@ -48,8 +48,8 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
     NaiveIndex<T, Point> naive_index;
     Graph<index_type> G;
 
-    std::unique_ptr<VirtualIndex<T, Point>> left = nullptr;
-    std::unique_ptr<VirtualIndex<T, Point>> right = nullptr;
+    std::unique_ptr<VamanaIndex<T, Point>> left = nullptr;
+    std::unique_ptr<VamanaIndex<T, Point>> right = nullptr;
     uint32_t mid;
 
     VamanaIndex() = default;
@@ -143,6 +143,9 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             }
             return found;
         } else {
+            if (left == nullptr || right == nullptr) {
+                return naive_index._range_knn(query, out, dists, left_end, right_end, min_time, max_time, k);
+            }
             if (left_end < mid && right_end > mid) {
                 auto left_out = parlay::sequence<index_type>::uninitialized(k);
                 auto left_dists = parlay::sequence<float>::uninitialized(k);
