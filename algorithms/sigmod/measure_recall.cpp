@@ -129,6 +129,7 @@ int main(int argc, char **argv) {
         csv_row_printing += timeStr;
 
         std::cout << "CSV Row inserted: " << csv_row_printing << std::endl;
+        file.close();
     }
 
     std::cout << "Total recall: " << (double)total_correct / (num_queries * K) << std::endl;
