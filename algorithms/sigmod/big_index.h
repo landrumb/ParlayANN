@@ -85,7 +85,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             left->fit(left_ni);
             right->fit(right_ni);
 
-            median_timestamp = timestamps[indices.size() / 2];
+            mid = indices.size() / 2;
         }
     }
 
@@ -120,7 +120,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         }
     }
 
-    int _range_knn(Point& query, index_type* out, float *dists, uint32_t left_end, uint32_t right_end, float min_time, float max_time, size_t k) override {
+    int _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) override {
         float range_percentage = (float)(right - left) / g.size();
 
         if (range_percentage > overretrieval_cutoff) {
@@ -137,13 +137,11 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             for (size_t i = 0; i < frontier.size() && found < k; i++) {
                 if (naive_index.timestamps[frontier[i].first] >= left_time && naive_index.timestamps[frontier[i].first] <= right_time) {
                     out[found] = naive_index.pr.real_index(frontier[i].first);
+                    dists[found] = dist_cmps[i];
                     found++;
                 }
             }
-
-            if (found < k) {
-                std::cout << "Warning: not enough points in range" << std::endl;
-            }
+            return found;
         } else {
             if (left_end < mid && right_end > mid) {
                 auto left_out = parlay::sequence<index_type>::uninitialized(k);

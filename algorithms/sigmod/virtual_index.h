@@ -25,5 +25,6 @@ class VirtualIndex {
     virtual void knn(Point& query, index_type* out, size_t k)  = 0;
     /* Range-filtered knn query */
     virtual void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) = 0;
+    virtual void _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) = 0;
 
 };
