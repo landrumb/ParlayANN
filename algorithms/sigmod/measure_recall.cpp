@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string.h>
 #include <cassert>
+#include <filesystem>
 
 #define K 100
 
@@ -14,7 +15,11 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    if (argc > 3 and strcmp(argv[2], "-r") == 0) {
+    if (strcmp(argv[1], "-r") == 0) {
+        if(argc < 4) {
+            std::cout << "Usage: " << argv[0] << " <optional CSV flag -r> <output file> <groundtruth file> <optional query file>" << std::endl;
+            return 0;
+        } 
         offset_arg = 1; // Skip the csv flag
     }
 
@@ -90,13 +95,41 @@ int main(int argc, char **argv) {
             std::cout << "Recall for problems of type " << i << ": " << (double)correct_count[i] / (problem_type_count[i] * K) << std::endl;
         }
     }
-
+    
+    // Output to CSV if -r was included (right now there is only the -r flag,
+    // so this conditional is a bit of a hack)
     if (offset_arg == 1) {
-        // Output to CSV if -r was included (right now there is only the -r flag,
-        // so this conditional is a bit of a hack)
-        
-    }
+        std::string recall_csv_path = "recall.csv";
+        std::ofstream file(recall_csv_path);
+        std::ifstream file_exists(recall_csv_path);
+        if (!file_exists.is_open()) {
+            throw std::runtime_error("Unable to open file " + recall_csv_path);
+        }
+        file_exists.seekg(0, file_exists.end);
+        size_t file_size = file_exists.tellg();
+        file_exists.close();
 
+        if (!file.is_open()) {
+            throw std::runtime_error("Unable to open file " + recall_csv_path);
+        }
+        if (file_size == 0) {
+            file << "Type 1 Recall, Type 2 Recall, Type 3 Recall, Type 4 Recall, Timestamp\n";
+        }
+        std::string csv_row_printing = "";
+        for (int i = 0; i < 4; i++) {
+            double recall = (double)correct_count[i] / (problem_type_count[i] * K);
+            file << recall << ",";
+            csv_row_printing += std::to_string(recall) + ",";
+        }
+
+        std::time_t now = std::time(nullptr);
+        char timeStr[20];
+        std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M", std::localtime(&now));
+        file << timeStr << "\n";
+        csv_row_printing += timeStr;
+
+        std::cout << "CSV Row inserted: " << csv_row_printing << std::endl;
+    }
 
     std::cout << "Total recall: " << (double)total_correct / (num_queries * K) << std::endl;
     return 0;
