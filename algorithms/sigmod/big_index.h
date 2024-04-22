@@ -21,7 +21,9 @@ BuildParams default_build_params = BuildParams(500, 64, 1.175);
 //QueryParams default_query_params = QueryParams(100, 500, 0.9, 1000, 100);
 QueryParams default_query_params = QueryParams(100, 500, 1.35, 10000000, 100);
 
-const float exhaustive_fallback_cutoff = 0.25;
+float exhaustive_fallback_cutoff = 0.25;
+
+size_t min_size = 10'000;
 
 const float overretrieval_cutoff = 0.5;
 
@@ -33,16 +35,21 @@ void set_default_query_params(long k, long beamSize, double cut, long limit, lon
     default_query_params = QueryParams(k, beamSize, cut, limit, degree_limit);
 }
 
-// Any graphs smaller than this are replaced with naive indexes
-const uint32_t window_min_graph_size = 100;
+void set_exhaustive_fallback_cutoff(float cutoff) {
+    exhaustive_fallback_cutoff = cutoff;
+}
+
+void set_min_size(size_t size) {
+    min_size = size;
+}
 
 template<typename T, typename Point>
 struct VamanaIndex : public VirtualIndex<T, Point> {
     NaiveIndex<T, Point> naive_index;
     Graph<index_type> G;
 
-    VirtualIndex<T, Point> *left_child;
-    VirtualIndex<T, Point> *right_child;
+    std::unique_ptr<VirtualIndex<T, Point>> left = nullptr;
+    std::unique_ptr<VirtualIndex<T, Point>> right = nullptr;
     uint32_t mid;
 
     VamanaIndex() = default;
@@ -59,6 +66,27 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         stats<index_type> BuildStats(points.size());
 
         I.build_index(G, naive_index.pr, BuildStats);
+
+        if (points.size() >= min_size * 2) {
+            parlay::sequence<index_type> left_indices(indices.begin(), indices.begin() + indices.size() / 2);
+            parlay::sequence<index_type> right_indices(indices.begin() + indices.size() / 2, indices.end());
+
+            parlay::sequence<float> left_timestamps(timestamps.begin(), timestamps.begin() + timestamps.size() / 2);
+            parlay::sequence<float> right_timestamps(timestamps.begin() + timestamps.size() / 2, timestamps.end());
+
+            left = std::make_unique<VamanaIndex<T, Point>>();
+            right = std::make_unique<VamanaIndex<T, Point>>();
+
+            NaiveIndex<T, Point> left_ni, right_ni;
+
+            left_ni.copyless_fit(points, left_timestamps, left_indices);
+            right_ni.copyless_fit(points, right_timestamps, right_indices);
+
+            left->fit(left_ni);
+            right->fit(right_ni);
+
+            median_timestamp = timestamps[indices.size() / 2];
+        }
     }
 
     void fit(PointRange<T, Point>& points,
@@ -66,6 +94,20 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         auto indices = parlay::tabulate(points.size(), [](index_type i) { return i; });
 
         fit(points, timestamps, indices);
+    }
+
+    void fit(NaiveIndex<T, Point>& ni) {
+        naive_index = std::move(ni);
+
+        G = Graph<index_type>(default_build_params.R, naive_index.timestamps.size());
+
+        knn_index<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, uint32_t> I(default_build_params);
+
+        stats<index_type> BuildStats(naive_index.timestamps.size());
+
+        I.build_index(G, naive_index.pr, BuildStats);
+
+        
     }
 
     void knn(Point& query, index_type* out, size_t k) override {
