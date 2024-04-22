@@ -54,39 +54,7 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         this->timestamps = std::move(timestamps);
     }
 
-    /* internal method to centralize exhaustive search logic
-    
-    range is of the form (start, length) */
-    inline parlay::sequence<std::pair<float, index_type>> _index_range_knn(Point& query, index_type* out, size_t k, std::pair<index_type, index_type> range) const {
-        if (range.second < k) {
-            std::cout << "Range of length " + std::to_string(range.second) + " too small for k = " + std::to_string(k) << std::endl;
-            throw std::runtime_error("Range too small for k");
-        }
-
-        // for the sake of avoiding overhead from nested parallelism, we will compute distances serially
-        parlay::sequence<std::pair<float, index_type>> distances(range.second);
-
-        for (index_type i = 0; i < range.second; i++) {
-            index_type idx = i + range.first;
-            distances[i] = std::make_pair(query.distance(pr[idx]), idx);
-        }
-
-        std::sort(distances.begin(), distances.end()); // technically a top k = 100 but we'll just sort the whole thing
-
-        return distances;
-    }
-
-    inline void _write_indices_from_distances(parlay::sequence<std::pair<float, index_type>>&& distances, index_type* out, size_t k) const {
-        for (size_t i = 0; i < k; i++) {
-            out[i] = pr.real_index(distances[i].second);
-        }
-    }
-
-    void knn(Point& query, index_type* out, size_t k) override {
-        _write_indices_from_distances(_index_range_knn(query, out, k, std::make_pair(0, pr.size())), out, k);
-    }
-
-    void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
+    std::pair<index_type, index_type> _range_indices(std::pair<float, float> endpoints) const {
         // we will need to do a binary search to find the start and end of the range
         index_type start = 0; // start is the index of the first element geq endpoints.first
         index_type end = pr.size(); // end is the index of the last element leq endpoints.second
@@ -112,7 +80,44 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         }
         end = l;
 
-        _write_indices_from_distances(_index_range_knn(query, out, k, std::make_pair(start, end)), out, k);
+        return std::make_pair(start, end);
+    }
+    /* internal method to centralize exhaustive search logic
+    
+    range is of the form (start, length) */
+    parlay::sequence<std::pair<float, index_type>> _index_range_knn(Point& query, size_t k, std::pair<index_type, index_type> range) const {
+        if (range.second < k) {
+            std::cout << "Range of length " + std::to_string(range.second) + " too small for k = " + std::to_string(k) << std::endl;
+            throw std::runtime_error("Range too small for k");
+        }
+
+        // for the sake of avoiding overhead from nested parallelism, we will compute distances serially
+        parlay::sequence<std::pair<float, index_type>> distances(range.second);
+
+        for (index_type i = 0; i < range.second; i++) {
+            index_type idx = i + range.first;
+            distances[i] = std::make_pair(query.distance(pr[idx]), idx);
+        }
+
+        std::sort(distances.begin(), distances.end()); // technically a top k = 100 but we'll just sort the whole thing
+
+        return distances;
+    }
+
+    inline void _write_indices_from_distances(parlay::sequence<std::pair<float, index_type>>&& distances, index_type* out, size_t k) const {
+        for (size_t i = 0; i < k; i++) {
+            out[i] = pr.real_index(distances[i].second);
+        }
+    }
+
+    void knn(Point& query, index_type* out, size_t k) override {
+        _write_indices_from_distances(_index_range_knn(query, k, std::make_pair(0, pr.size())), out, k);
+    }
+
+    void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
+        auto endpoint_indices = _range_indices(endpoints);
+
+        _write_indices_from_distances(_index_range_knn(query, k, endpoint_indices), out, k);
     }
 
     size_t _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) {

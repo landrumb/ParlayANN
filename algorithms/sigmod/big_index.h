@@ -21,7 +21,10 @@ BuildParams default_build_params = BuildParams(500, 64, 1.175);
 //QueryParams default_query_params = QueryParams(100, 500, 0.9, 1000, 100);
 QueryParams default_query_params = QueryParams(100, 500, 1.35, 10000000, 100);
 
+QueryParams default_overretrieval_params = QueryParams(500, 500, 1.35, 10000000, 100);
+
 float exhaustive_fallback_cutoff = 0.25;
+size_t tiny_cutoff = 2000;
 
 size_t min_size = 10'000;
 
@@ -41,6 +44,17 @@ void set_exhaustive_fallback_cutoff(float cutoff) {
 
 void set_min_size(size_t size) {
     min_size = size;
+}
+
+/* worth noting that this is not robust to duplicates */
+void update_frontier(parlay::sequence<std::pair<float, index_type>>& frontier, parlay::sequence<std::pair<float, index_type>>& adds, size_t k) {
+    frontier.append(adds);
+
+    std::sort(frontier.begin(), frontier.end(), [](auto a, auto b) { return a.first < b.first; });
+    
+    if (frontier.size() > k) {
+        frontier.resize(k);
+    }
 }
 
 template<typename T, typename Point>
@@ -120,6 +134,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         }
     }
 
+    /* 
     // returns the number of nearest neighbors found
     // out and dists are for outputting the indexes and distances of the k-closest
     // [left_end, right_end) indicates the range of indices within the desired timestamps
@@ -131,7 +146,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         if (range_percentage > overretrieval_cutoff) {
             QueryParams qp = default_query_params;
             qp.k = qp.beamSize;
-            qp.limit = static_cast<int>(qp.limit / (endpoints.second - endpoints.first));
+            // qp.limit = static_cast<int>(qp.limit / (endpoints.second - endpoints.first));
  
             auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0, qp);
 
@@ -237,6 +252,100 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             std::cout << "Warning: not enough points found" << std::endl;
         }
     }
+ */
+    parlay::sequence<std::pair<float, index_type>> _knn_with_real_index_distances(Point& query, size_t k) {
+        auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0, default_query_params);
+
+        parlay::sequence<std::pair<float, index_type>> frontier(k);
+
+        for (size_t i = 0; i < k; i++) {
+            frontier[i] = std::make_pair(pairElts.first[i].second, naive_index.pr.real_index(pairElts.first[i].first));
+        }
+
+        return frontier;
+    }
+
+    /* endpoints here are local indices */
+    parlay::sequence<std::pair<float, index_type>> _index_range_knn_with_real_index_distances(Point& query, std::pair<index_type, index_type> endpoints, size_t k) {
+        size_t size = endpoints.second - endpoints.first;
+
+        if (size >= this->size()) {
+            if (size > this->size()) {
+                std::cout << "Warning: range larger than index size" << std::endl;
+            }
+
+            return _knn_with_real_index_distances(query, k);
+        }
+
+        if (size <= tiny_cutoff) {
+            auto local_index_distances = naive_index._index_range_knn(query, k, endpoints);
+
+            parlay::sequence<std::pair<float, index_type>> result(k);
+
+            for (size_t i = 0; i < k; i++) {
+                result[i] = std::make_pair(local_index_distances[i].first, naive_index.pr.real_index(local_index_distances[i].second));
+            }
+
+            return result;
+        } else if (size >= this->size() * overretrieval_cutoff) {
+            // just do overretrieval
+            auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0, default_overretrieval_params);
+
+            auto frontier = pairElts.first;
+
+            parlay::sequence<std::pair<float, index_type>> result(k);
+
+            // filter + swap order of pair + convert to real index
+            for (size_t i = 0; i < frontier.size(); i++) {
+                if (frontier[i].first >= endpoints.first && frontier[i].first < endpoints.second) {
+                    result.push_back(std::make_pair(frontier[i].second, naive_index.pr.real_index(frontier[i].first)));
+                }
+                if (result.size() == k) {
+                    break;
+                }
+            }
+            return result;
+        } else {
+            // we recurse on children
+            if (left == nullptr || right == nullptr) {
+                auto local_index_distances = naive_index._index_range_knn(query, k, endpoints);
+
+                parlay::sequence<std::pair<float, index_type>> result(k);
+
+                for (size_t i = 0; i < k; i++) {
+                    result[i] = std::make_pair(local_index_distances[i].first, naive_index.pr.real_index(local_index_distances[i].second));
+                }
+
+                return result;
+            }
+
+            // if range overlaps the left child
+            if (endpoints.first < mid && endpoints.second > mid) {
+                auto left_result = left->_index_range_knn_with_real_index_distances(query, std::make_pair(endpoints.first, mid), k);
+                auto right_result = right->_index_range_knn_with_real_index_distances(query, std::make_pair(0, endpoints.second - mid), k);
+                
+                update_frontier(left_result, right_result, k);
+
+                return left_result;
+            } else if (endpoints.first < mid) {
+                return left->_index_range_knn_with_real_index_distances(query, std::make_pair(endpoints.first, mid), k);
+            } else {
+                return right->_index_range_knn_with_real_index_distances(query, std::make_pair(endpoints.first - mid, endpoints.second - mid), k);
+            }
+        }
+    }
+
+    void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
+        auto endpoint_indices = naive_index._range_indices(endpoints);
+
+        auto frontier = _index_range_knn_with_real_index_distances(query, endpoint_indices, k);
+
+        for (size_t i = 0; i < k; i++) {
+            out[i] = frontier[i].second;
+        }
+    }
+
+
 
     /*void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
         // we assume that the distribution of timestamps is uniform, and the distance between the endpoints is some good approximation of the selectivity
@@ -271,4 +380,8 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             }
         }
     }*/
+
+    size_t size() const noexcept {
+        return naive_index.pr.size();
+    }
 };
