@@ -7,21 +7,29 @@
 #define K 100
 
 int main(int argc, char **argv) {
+    int offset_arg = 0;
+
     if (argc < 3) {
-        std::cout << "Usage: " << argv[0] << " <output file> <groundtruth file> <optional query file>" << std::endl;
+        std::cout << "Usage: " << argv[0] << " <optional CSV flag -r> <output file> <groundtruth file> <optional query file>" << std::endl;
         return 0;
     }
 
-    std::ifstream out_reader(argv[1]);
+    if (argc > 3 and strcmp(argv[2], "-r") == 0) {
+        offset_arg = 1; // Skip the csv flag
+    }
+
+    std::ifstream out_reader(argv[1 + offset_arg]);
     if (!out_reader.is_open()) {
         throw std::runtime_error("Unable to open file " + std::string(argv[1]));
     }
-    std::ifstream gt_reader(argv[2]);
+    std::ifstream gt_reader(argv[2 + offset_arg]);
     if (!gt_reader.is_open()) {
         throw std::runtime_error("Unable to open file " + std::string(argv[2]));
     }
-    std::ifstream query_reader(argv[3]);
-    if (argc > 3) {
+
+    std::ifstream query_reader;
+    if (argc > 3 + offset_arg) {
+        query_reader.open(argv[3 + offset_arg]);
         if (!query_reader.is_open()) {
             throw std::runtime_error("Unable to open file " + std::string(argv[3]));
         }
@@ -44,7 +52,7 @@ int main(int argc, char **argv) {
 
     uint32_t problem_type_count[4] = {0, 0, 0, 0};
     uint32_t correct_count[4] = {0, 0, 0, 0};
-    if (argc > 3) {
+    if (argc > 3 + offset_arg) {
         query_reader.ignore(4);
     }
 
@@ -53,7 +61,7 @@ int main(int argc, char **argv) {
     uint64_t total_correct = 0;
     for (int i = 0; i < num_queries; i++) {
         uint32_t problem_type;
-        if (argc > 3) {
+        if (argc > 3 + offset_arg) {
             float problem_type_buffer;
             query_reader.read((char*)&problem_type_buffer, sizeof(uint32_t));
             query_reader.ignore(103 * sizeof(uint32_t));
@@ -77,11 +85,18 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (argc > 3) {
+    if (argc > 3 + offset_arg) {
         for (int i = 0; i < 4; i++) {
             std::cout << "Recall for problems of type " << i << ": " << (double)correct_count[i] / (problem_type_count[i] * K) << std::endl;
         }
     }
+
+    if (offset_arg == 1) {
+        // Output to CSV if -r was included (right now there is only the -r flag,
+        // so this conditional is a bit of a hack)
+        
+    }
+
 
     std::cout << "Total recall: " << (double)total_correct / (num_queries * K) << std::endl;
     return 0;
