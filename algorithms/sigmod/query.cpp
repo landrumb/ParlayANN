@@ -23,6 +23,8 @@ int main(int argc, char** argv) {
 
     double build_time = t.next_time();
 
+    std::cout << "Index built in " << build_time << " seconds" << std::endl;
+
     // need length of queries to get the right size of the output array
     std::ifstream file(argv[2]);
     if (!file.is_open()) {
