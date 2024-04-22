@@ -57,7 +57,7 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
     /* internal method to centralize exhaustive search logic
     
     range is of the form (start, length) */
-    inline void _index_range_knn(Point& query, index_type* out, size_t k, std::pair<index_type, index_type> range) const {
+    inline parlay::sequence<std::pair<float, index_type>> _index_range_knn(Point& query, index_type* out, size_t k, std::pair<index_type, index_type> range) const {
         if (range.second < k) {
             std::cout << "Range of length " + std::to_string(range.second) + " too small for k = " + std::to_string(k) << std::endl;
             throw std::runtime_error("Range too small for k");
@@ -73,13 +73,17 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
 
         std::sort(distances.begin(), distances.end()); // technically a top k = 100 but we'll just sort the whole thing
 
+        return distances;
+    }
+
+    inline void _write_indices_from_distances(parlay::sequence<std::pair<float, index_type>>&& distances, index_type* out, size_t k) const {
         for (size_t i = 0; i < k; i++) {
             out[i] = pr.real_index(distances[i].second);
         }
     }
 
     void knn(Point& query, index_type* out, size_t k) override {
-        _index_range_knn(query, out, k, std::make_pair(0, pr.size()));
+        _write_indices_from_distances(_index_range_knn(query, out, k, std::make_pair(0, pr.size())), out, k);
     }
 
     void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
@@ -108,7 +112,7 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         }
         end = l;
 
-        _index_range_knn(query, out, k, std::make_pair(start, end - start));
+        _write_indices_from_distances(_index_range_knn(query, out, k, std::make_pair(start, end)), out, k);
     }
 
     size_t _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) {
