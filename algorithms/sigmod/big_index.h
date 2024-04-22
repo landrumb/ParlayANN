@@ -192,32 +192,33 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
     }
 
     void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
-        float time_range = endpoints.second - endpoints.first;
+        index_type start = 0;
+        index_type end = pr.size();
 
-        if (time_range < exhaustive_fallback_cutoff) {
-            naive_index.range_knn(query, out, endpoints, k);
-            return;
-        } else { // otherwise we use overretrieval
-            QueryParams qp = default_query_params;
-            qp.k = qp.beamSize;
-            qp.limit = static_cast<int>(qp.limit / (endpoints.second - endpoints.first));
- 
-            auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0, qp);
+        index_type l = 0;
+        index_type r = pr.size();
 
-            auto frontier = pairElts.first;
+        while (l < r) {
+            index_type m = (l + r) / 2;
+            if (naive_index.timestamps[m] < endpoints.first) l = m + 1;
+            else r = m;
+        }
+        start = l;
 
-            // filter to the points which are in the range
-            size_t found = 0;
-            for (size_t i = 0; i < frontier.size() && found < k; i++) {
-                if (naive_index.timestamps[frontier[i].first] >= endpoints.first && naive_index.timestamps[frontier[i].first] <= endpoints.second) {
-                    out[found] = naive_index.pr.real_index(frontier[i].first);
-                    found++;
-                }
-            }
+        l = 0;
+        r = pr.size();
 
-            if (found < k) {
-                std::cout << "Warning: not enough points in range" << std::endl;
-            }
+        while (l < r) {
+            index_type m = (l + r) / 2;
+            if (naive_index.timestamps[m] <= endpoints.second) l = m + 1;
+            else r = m;
+        }
+        end = l;
+
+        auto dists = parlay::sequence<float>::uninitialized(k);
+        int found = _range_query(query, out, &dists[0], start, end, endpoints.first, endpoints.second, k);
+        if (found < k) {
+            std::cout << "Warning: not enough points found" << std::endl;
         }
     }
 
