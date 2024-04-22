@@ -278,7 +278,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         }
 
         if (size <= tiny_cutoff) {
-            auto local_index_distances = naive_index._index_range_knn(query, k, endpoints);
+            auto local_index_distances = naive_index._index_range_knn(query, k, std::make_pair(endpoints.first, endpoints.second - endpoints.first));
 
             parlay::sequence<std::pair<float, index_type>> result(k);
 
@@ -308,7 +308,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         } else {
             // we recurse on children
             if (left == nullptr || right == nullptr) {
-                auto local_index_distances = naive_index._index_range_knn(query, k, endpoints);
+                auto local_index_distances = naive_index._index_range_knn(query, k, std::make_pair(endpoints.first, endpoints.second - endpoints.first));
 
                 parlay::sequence<std::pair<float, index_type>> result(k);
 
