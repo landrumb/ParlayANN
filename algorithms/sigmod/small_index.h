@@ -111,7 +111,7 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         _index_range_knn(query, out, k, std::make_pair(start, end - start));
     }
 
-    void _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) {
+    size_t _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) {
         // for the sake of avoiding overhead from nested parallelism, we will compute distances serially
         parlay::sequence<std::pair<float, index_type>> distances(right_end - left_end);
 
@@ -126,5 +126,6 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
             out[i] = pr.real_index(distances[i].second);
             dists[i] = distances[i].first;
         }
+        return k;
     }
 };

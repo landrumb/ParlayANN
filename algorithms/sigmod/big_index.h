@@ -120,8 +120,8 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         }
     }
 
-    int _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) override {
-        float range_percentage = (float)(right - left) / g.size();
+    size_t _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) override {
+        float range_percentage = (float)(right_end - left_end) / G.size();
 
         if (range_percentage > overretrieval_cutoff) {
             QueryParams qp = default_query_params;
@@ -135,9 +135,9 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             // filter to the points which are in the range
             int found = 0;
             for (size_t i = 0; i < frontier.size() && found < k; i++) {
-                if (naive_index.timestamps[frontier[i].first] >= left_time && naive_index.timestamps[frontier[i].first] <= right_time) {
+                if (naive_index.timestamps[frontier[i].first] >= min_time && naive_index.timestamps[frontier[i].first] <= max_time) {
                     out[found] = naive_index.pr.real_index(frontier[i].first);
-                    dists[found] = dist_cmps[i];
+                    dists[found] = frontier[i].second;
                     found++;
                 }
             }
@@ -149,15 +149,15 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
                 auto right_out = parlay::sequence<index_type>::uninitialized(k);
                 auto right_dists = parlay::sequence<float>::uninitialized(k);
 
-                int left_found, right_found;
+                size_t left_found, right_found;
 
                 parlay::par_do([&] () {
-                    left_found = left_child->_range_knn(query, &left_out[0], &left_dists[0], left_end, mid, min_time, max_time, k);
+                    left_found = left->_range_knn(query, &left_out[0], &left_dists[0], left_end, mid, min_time, max_time, k);
                 }, [&] () {
-                    right_found = right_child->_range_knn(query, &right_out[0], &right_dists[0], 0, right_end - mid, min_time, max_time, k);
+                    right_found = right->_range_knn(query, &right_out[0], &right_dists[0], 0, right_end - mid, min_time, max_time, k);
                 });
 
-                int i = 0, j = 0, found = 0;
+                size_t i = 0, j = 0, found = 0;
                 while (i < left_found && j < right_found && found < k) {
                     if (left_dists[i] < right_dists[j]) {
                         out[found] = left_out[i];
@@ -169,13 +169,13 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
                     }
                 }
                 if (i == left_found) {
-                    int extra = std::min(right_found - j, k - found);
+                    size_t extra = std::min(right_found - j, k - found);
                     std::memcpy(&out[found], &right_out[j], extra);
                     std::memcpy(&dists[found], &right_dists[j], extra);
                     found += extra;
                 }
                 else if (j == right_found) {
-                    int extra = std::min(left_found - i, k - found);
+                    size_t extra = std::min(left_found - i, k - found);
                     std::memcpy(&out[found], &left_out[i], extra);
                     std::memcpy(&dists[found], &left_dists[i], extra);
                     found += extra;
@@ -183,20 +183,20 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
                 return found;
             }
             else if (left_end < mid) {
-                return left_child->_range_knn(query, out, dists, left_end, right_end, min_time, max_time, k);
+                return left->_range_knn(query, out, dists, left_end, right_end, min_time, max_time, k);
             }
             else {
-                return right_child->_range_knn(query, out, dists, left_end - mid, right_end - mid, min_time, max_time, k);
+                return right->_range_knn(query, out, dists, left_end - mid, right_end - mid, min_time, max_time, k);
             }
         }
     }
 
     void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
         index_type start = 0;
-        index_type end = pr.size();
+        index_type end = naive_index.pr.size();
 
         index_type l = 0;
-        index_type r = pr.size();
+        index_type r = naive_index.pr.size();
 
         while (l < r) {
             index_type m = (l + r) / 2;
@@ -206,7 +206,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         start = l;
 
         l = 0;
-        r = pr.size();
+        r = naive_index.pr.size();
 
         while (l < r) {
             index_type m = (l + r) / 2;
@@ -216,7 +216,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         end = l;
 
         auto dists = parlay::sequence<float>::uninitialized(k);
-        int found = _range_query(query, out, &dists[0], start, end, endpoints.first, endpoints.second, k);
+        int found = _range_knn(query, out, &dists[0], start, end, endpoints.first, endpoints.second, k);
         if (found < k) {
             std::cout << "Warning: not enough points found" << std::endl;
         }
