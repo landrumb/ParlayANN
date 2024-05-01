@@ -117,7 +117,9 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
     void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
         auto endpoint_indices = _range_indices(endpoints);
 
-        _write_indices_from_distances(_index_range_knn(query, k, endpoint_indices), out, k);
+        auto start_length = std::make_pair(endpoint_indices.first, endpoint_indices.second - endpoint_indices.first);
+
+        _write_indices_from_distances(_index_range_knn(query, k, start_length), out, k);
     }
 
     size_t _range_knn(Point& query, index_type* out, float *dists, index_type left_end, index_type right_end, float min_time, float max_time, size_t k) {
@@ -136,4 +138,6 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         }
         return k;
     }
+
+    
 };

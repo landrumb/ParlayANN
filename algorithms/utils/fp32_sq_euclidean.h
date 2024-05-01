@@ -35,8 +35,8 @@ float sq_euclidean(const float* a, const float* b) {
     constexpr bool remainder_128 = (dim % 16) % 8 >= 4;
 
     if constexpr (remainder_128) {
-        __m128 a_chunk = _mm_load_ps(a + 16 * n_512 + (8 * remainder_256));
-        __m128 b_chunk = _mm_load_ps(b + 16 * n_512 + (8 * remainder_256));
+        __m128 a_chunk = _mm_loadu_ps(a + 16 * n_512 + (8 * remainder_256));
+        __m128 b_chunk = _mm_loadu_ps(b + 16 * n_512 + (8 * remainder_256));
 
         a_chunk = _mm_sub_ps(a_chunk, b_chunk);
         a_chunk = _mm_mul_ps(a_chunk, a_chunk);
