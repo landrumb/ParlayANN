@@ -1,6 +1,6 @@
 TARGETS = query measure_recall
 INCLUDE = ../../parlaylib/include
-REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../utils/NSGDist.h ../utils/parse_results.h ../utils/graph.h ../utils/point_range.h small_index.h big_index.h
+REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../utils/NSGDist.h ../utils/parse_results.h ../utils/graph.h ../utils/point_range.h small_index.h big_index.h filter_ivf_index.h 
 
 
 #ifeq (, $(shell which jemalloc-config))
@@ -12,6 +12,7 @@ REQUIRE = sigmodindex.h ../utils/beamSearch.h ../utils/check_nn_recall.h ../util
 
 DEBUG = 0
 PROFILE = 0
+PROD = 0
 
 ifeq ($(DEBUG), 0)
 OPT = -O3 -DNDEBUG
@@ -21,6 +22,10 @@ endif
 
 ifneq ($(PROFILE), 0)
 PROF = -pg
+endif
+
+ifeq ($(PROD), 1)
+OPT += -DPROD
 endif
 
 

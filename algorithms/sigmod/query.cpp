@@ -65,6 +65,8 @@ int main(int argc, char** argv) {
     std::cout << "Total time: " << t.total_time() << std::endl;
 
     std::cout << "4M queries would have taken: " << (1600 * query_time + 10 * build_time) / 60 << " minutes" << std::endl;
+    std::cout << "\t10M Build: " << 10 * build_time / 60 << " minutes" << std::endl;
+    std::cout << "\t4M Query: " << 1600 * query_time / 60 << " minutes" << std::endl;
 
     if (arg_offset == 1) {
         std::string query_csv_path = "query.csv";

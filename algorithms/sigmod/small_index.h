@@ -139,5 +139,15 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
         return k;
     }
 
-    
+    size_t size() const override {
+        return pr.size();
+    }
+
+    size_t dims() const override {
+        return pr.dims;
+    }
+
+    size_t aligned_dims() const override {
+        return pr.aligned_dims;
+    }
 };

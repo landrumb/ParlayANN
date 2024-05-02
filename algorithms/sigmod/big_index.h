@@ -352,8 +352,8 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
     //     }
     // }
 
-    void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
-        auto endpoint_indices = naive_index._range_indices(endpoints);
+    // void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
+    //     auto endpoint_indices = naive_index._range_indices(endpoints);
 
         if (endpoints.second - endpoints.first < exhaustive_fallback_cutoff) {
             naive_index.range_knn(query, out, endpoints, k);
@@ -419,8 +419,16 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         }
     }
 
-    size_t size() const noexcept {
+    size_t size() const override {
         return naive_index.pr.size();
+    }
+
+    size_t dims() const override {
+        return naive_index.pr.dims;
+    }
+
+    size_t aligned_dims() const override {
+        return naive_index.pr.aligned_dims;
     }
 };
 
