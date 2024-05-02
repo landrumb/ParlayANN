@@ -47,6 +47,20 @@ class VirtualIndex {
         }
     }
 
+    virtual void batch_range_knn(T* queries, index_type** out, std::pair<float, float>* endpoints, size_t k, size_t num_queries, bool parallel = true) {
+        if (parallel) {
+            parlay::parallel_for(0, num_queries, [&] (size_t i) {
+                Point query(queries + i * aligned_dims(), dims(), aligned_dims(), i);
+                range_knn(query, *(out + i), *(endpoints + i), k);
+            });
+        } else {
+            for (size_t i = 0; i < num_queries; i++) {
+                Point query(queries + i * aligned_dims(), dims(), aligned_dims(), i);
+                range_knn(query, *(out + i), *(endpoints + i), k);
+            }
+        }
+    }
+
     virtual size_t size() const = 0;
     virtual size_t dims() const = 0;
     virtual size_t aligned_dims() const = 0;
