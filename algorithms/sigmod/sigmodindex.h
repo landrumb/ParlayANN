@@ -175,19 +175,19 @@ public:
         // does not consider aligned dim, probably wrong
             parlay::parallel_for(0, num_queries, [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];
-                Point query = Point(query_vectors + i * DIM, DIM);
+                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
                 switch (query_type) {
                     case 0:
                         big_index.knn(query, out + i * K, K);
                         break;
                     case 1:
-                        categorical_indices[category].knn(query, out + i * K, K);
+                        categorical_indices[category]->knn(query, out + i * K, K);
                         break;
                     case 2:
                         big_index.range_knn(query, out + i * K, std::make_pair(start, end), K);
                         break;
                     case 3:
-                        categorical_indices[category].range_knn(query, out + i * K, std::make_pair(start, end), K);
+                        categorical_indices[category]->range_knn(query, out + i * K, std::make_pair(start, end), K);
                         break;
                     default:
                         throw std::runtime_error("Invalid query type");
@@ -201,11 +201,12 @@ public:
             // or even better big->range->categorical+categorical range
 
             // run big queries
-            parlay::parallel_for(0, query_type_count[0], [&](index_type i) {
-                auto [query_type, category, start, end, index] = queries[i];
-                Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                big_index.knn(query, out + index * K, K);
-            });
+            // parlay::parallel_for(0, query_type_count[0], [&](index_type i) {
+            //     auto [query_type, category, start, end, index] = queries[i];
+            //     Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+            //     big_index.knn(query, out + index * K, K);
+            // });
+            big_index_batch_query(queries, query_vectors, out, query_type_count[0]);
 
             double big_time = t.next_time();
             qps_per_case[0] = query_type_count[0] / big_time;
@@ -313,8 +314,27 @@ private:
         }
     }
 
-    void execute_range_queries() {
+    void execute_range_queries() {}
         
+    inline void big_index_batch_query(Query* queries, T* query_vectors, index_type* out, size_t big_query_count) {
+        // move all the big query vectors into a contiguous block
+        T* big_query_vectors = static_cast<T*>(std::aligned_alloc(64, big_query_count * ALIGNED_DIM * sizeof(T)));
+
+        // should be parallel perhaps
+        for (index_type i = 0; i < big_query_count; i++) {
+            std::memcpy(big_query_vectors + i * ALIGNED_DIM, query_vectors + std::get<4>(queries[i]) * ALIGNED_DIM, DIM * sizeof(T));
+        }
+
+        index_type** out_ptrs = static_cast<index_type**>(malloc(big_query_count * sizeof(index_type*)));
+
+        for (index_type i = 0; i < big_query_count; i++) {
+            out_ptrs[i] = out + i * K;
+        }
+
+        big_index.batch_knn(big_query_vectors, out_ptrs, K, big_query_count, true);
+
+        free(big_query_vectors);
+        free(out_ptrs);
     }
 };
 
