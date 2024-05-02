@@ -200,6 +200,12 @@ public:
             // order should probably be big->range->categorical->categorical range
             // or even better big->range->categorical+categorical range
 
+            windowed_range_queries(queries, query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], query_vectors, out);
+
+            double range_time = t.next_time();
+            qps_per_case[2] = query_type_count[2] / range_time;
+            std::cout << "Ran " << query_type_count[2] << " range queries in " << range_time << " seconds (QPS: " << query_type_count[2] / range_time << ")" << std::endl;
+
             // run big queries
             parlay::parallel_for(0, query_type_count[0], [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];
@@ -212,11 +218,11 @@ public:
             std::cout << "Ran " << query_type_count[0] << " big queries in " << big_time << " seconds (QPS: " << query_type_count[0] / big_time << ")" << std::endl;
 
             // run range queries
-            parlay::parallel_for(query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], [&](index_type i) {
+            /*parlay::parallel_for(query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];
                 Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
                 //big_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
-                if (end - start <= DEFAULT_CUTOFF) {
+                if ((end - start) * points.size() <= DEFAULT_CUTOFF) {
                     big_index.naive_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
                 }
                 else {
@@ -228,11 +234,7 @@ public:
                     assert((1ull << level) * start / points.size() < range_indices[level].size());
                     range_indices[level][(1ull << level) * start / points.size()]->overretrieval_range_knn(query, out + index * K, std::make_pair(start, end), K);
                 }
-            });
-
-            double range_time = t.next_time();
-            qps_per_case[2] = query_type_count[2] / range_time;
-            std::cout << "Ran " << query_type_count[2] << " range queries in " << range_time << " seconds (QPS: " << query_type_count[2] / range_time << ")" << std::endl;
+            });*/
 
             // run categorical queries
             parlay::parallel_for(query_type_count[0], query_type_count[0] + query_type_count[1], [&](index_type i) {
@@ -313,8 +315,65 @@ private:
         }
     }
 
-    void execute_range_queries() {
-        
+    inline unsigned int which_window_in_level(int level, float start) {
+        int window = static_cast<int>((1 << (level + 1)) * start);
+        if (window == (1 << (level + 1)) - 1) window--;
+        return window;
+    }
+    inline unsigned int encode_window(int level, int window_in_level) {
+        return (1 << (level + 1)) - 1 - level + window_in_level;
+    }
+
+    template <typename Range>
+    void windowed_range_queries(Range&& range_queries, size_t queries_start, size_t queries_end, T *query_vectors, index_type *out) {
+        auto bucketed_queries = parlay::sequence<std::pair<unsigned int, Query>>::from_function(queries_end - queries_start,
+            [&] (size_t i) {
+                auto [query_type, category, start, end, index] = range_queries[queries_start + i];
+                int level = end - start >= 3.0 / 8.0 ? 0 : static_cast<int>(floor(log2(3.0 / 8.0 / (end - start)))) + 1;
+                if (level >= range_indices.size()) return std::make_pair(0u, range_queries[queries_start + i]);
+                int window_in_level = which_window_in_level(level, start);
+                return std::make_pair(encode_window(level, window_in_level), range_queries[queries_start + i]);
+            });
+
+        auto grouped_queries = parlay::group_by_index(bucketed_queries, encode_window(range_indices.size(), 0));
+        for (int i = 0; i < grouped_queries.size(); i++) {
+            std::cout << "Group " << i << " contains " << grouped_queries[i].size() << " range queries" << std::endl;
+        }
+
+        parlay::parallel_for(0, grouped_queries[0].size(), [&] (size_t i) {
+                auto [query_type, category, start, end, index] = grouped_queries[0][i];
+                Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                big_index.naive_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+            });
+        int group_id = 1;
+        for (auto& window_level : range_indices) {
+            for (auto& window : window_level) {
+                parlay::parallel_for(0, grouped_queries[group_id].size(), [&] (size_t i) {
+                        auto [query_type, category, start, end, index] = grouped_queries[group_id][i];
+                        Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                        window->range_knn(query, out + index * K, std::make_pair(start, end), K);
+                    });
+                group_id++;
+            }
+        }
+
+        /*parlay::parallel_for(queries_start, queries_end, [&] (index_type i) {
+            auto [query_type, category, start, end, index] = range_queries[i];
+            Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+            //big_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+            if ((end - start) * points.size() <= DEFAULT_CUTOFF) {
+                big_index.naive_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+            }
+            else {
+                double normalized_range_length = (double)(end - start) / points.size();
+                int level;
+                if (normalized_range_length >= 3.0 / 8.0) level = 0;
+                else level = static_cast<int>(floor(log2(3.0 / 8.0 / normalized_range_length)));
+                assert(level >= 0 && level < range_indices.size());
+                assert(which_window_in_level(level, start) < range_indices[level].size());
+                range_indices[level][which_window_in_level(level, start)]->overretrieval_range_knn(query, out + index * K, std::make_pair(start, end), K);
+            }
+        });*/
     }
 };
 
