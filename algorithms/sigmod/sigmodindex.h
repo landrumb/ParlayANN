@@ -168,6 +168,8 @@ public:
         // should be parallel but am putting off remembering how slice initialization works
         std::sort(queries, queries + num_queries);
 
+        // important to note that we do NOT sort the query vectors, and they should be accessed by index
+
         std::cout << "Sorted queries in " << t.next_time() << " seconds" << std::endl;
 
         #ifdef PROD
@@ -201,11 +203,6 @@ public:
             // or even better big->range->categorical+categorical range
 
             // run big queries
-            // parlay::parallel_for(0, query_type_count[0], [&](index_type i) {
-            //     auto [query_type, category, start, end, index] = queries[i];
-            //     Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-            //     big_index.knn(query, out + index * K, K);
-            // });
             big_index_batch_query(queries, query_vectors, out, query_type_count[0]);
 
             double big_time = t.next_time();
@@ -214,33 +211,20 @@ public:
 
             // run range queries
             big_index_range_query(queries + query_type_count[0] + query_type_count[1], query_vectors, out, query_type_count[2]);
-            // parlay::parallel_for(query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], [&](index_type i) {
-            //     auto [query_type, category, start, end, index] = queries[i];
-            //     Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-            //     big_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
-            // });
 
             double range_time = t.next_time();
             qps_per_case[2] = query_type_count[2] / range_time;
             std::cout << "Ran " << query_type_count[2] << " range queries in " << range_time << " seconds (QPS: " << query_type_count[2] / range_time << ")" << std::endl;
 
             // run categorical queries
-            parlay::parallel_for(query_type_count[0], query_type_count[0] + query_type_count[1], [&](index_type i) {
-                auto [query_type, category, start, end, index] = queries[i];
-                Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                categorical_indices[category]->knn(query, out + index * K, K);
-            });
+            categorical_query(queries + query_type_count[0], query_vectors, out, query_type_count[1]);
 
             double categorical_time = t.next_time();
             qps_per_case[1] = query_type_count[1] / categorical_time;
             std::cout << "Ran " << query_type_count[1] << " categorical queries in " << categorical_time << " seconds (QPS: " << query_type_count[1] / categorical_time << ")" << std::endl;
 
             // run categorical range queries
-            parlay::parallel_for(query_type_count[0] + query_type_count[1] + query_type_count[2], num_queries, [&](index_type i) {
-                auto [query_type, category, start, end, index] = queries[i];
-                Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                categorical_indices[category]->range_knn(query, out + index * K, std::make_pair(start, end), K);
-            });
+            categorical_range_query(queries + query_type_count[0] + query_type_count[1] + query_type_count[2], query_vectors, out, query_type_count[3]);
 
             double categorical_range_time = t.next_time();
             qps_per_case[3] = query_type_count[3] / categorical_range_time;
@@ -356,6 +340,22 @@ private:
                     range_indices[level][(1ull << level) * start / points.size()]->overretrieval_range_knn(query, out + index * K, std::make_pair(start, end), K);
                 }
             });
+    }
+
+    inline void categorical_query(Query* queries, T* query_vectors, index_type* out, size_t categorical_query_count) {
+        parlay::parallel_for(0, categorical_query_count, [&](index_type i) {
+            auto [query_type, category, start, end, index] = queries[i];
+            Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+            categorical_indices[category]->knn(query, out + index * K, K);
+        });
+    }
+
+    inline void categorical_range_query(Query* queries, T* query_vectors, index_type* out, size_t categorical_range_query_count) {
+        parlay::parallel_for(0, categorical_range_query_count, [&](index_type i) {
+            auto [query_type, category, start, end, index] = queries[i];
+            Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+            categorical_indices[category]->range_knn(query, out + index * K, std::make_pair(start, end), K);
+        });
     }
 };
 
