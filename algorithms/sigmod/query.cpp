@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
     t.start();
 
     SigmodIndex<VamanaIndex<float, Euclidian_Point<float>>, NaiveIndex<float, Euclidian_Point<float>>> index;
+    // SigmodIndex<NaiveIndex<float, Euclidian_Point<float>>, NaiveIndex<float, Euclidian_Point<float>>> index;
 
     index.build_index(argv[1 + arg_offset]);
 

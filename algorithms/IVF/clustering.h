@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utility>
+#include <algorithm>
+#include <type_traits>
 
 template <typename Point, typename PointRange, typename indexType>
 using cluster_struct = cluster<Point, PointRange, indexType>;
@@ -155,7 +157,7 @@ struct KMeansClusterer {
 	}
 
   parlay::sequence<parlay::sequence<index_type>> cluster(
-     PointRange<T, Point> points, parlay::sequence<index_type> input_indices) {
+     PointRange<T, Point>& points, parlay::sequence<index_type> input_indices) {
     parlay::internal::timer  t;
     t.start();
 
@@ -178,10 +180,10 @@ struct KMeansClusterer {
                        num_points / n_clusters)
                        .cluster(points, input_indices);
 
-    parlay::sort(clusters, [&](parlay::sequence<index_type> a,
-                               parlay::sequence<index_type> b) {
-      return a.size() < b.size();
-    });
+    // clusters = parlay::sort(clusters, [&](parlay::sequence<index_type> a,
+    //                            parlay::sequence<index_type> b) {
+    //   return a.size() > b.size();
+    // });
 
     parlay::parallel_for(0, n_clusters, [&](size_t i) {
       size_t offset = i * aligned_dim;
@@ -193,7 +195,11 @@ struct KMeansClusterer {
         }
       }
       for (size_t d = 0; d < dim; d++) {
-        centroid_data[offset + d] = static_cast<T>(std::round(centroid[d]));
+        if constexpr (std::is_integral<T>::value) {
+          centroid_data[offset + d] = static_cast<T>(std::round(centroid[d]));
+        } else {
+          centroid_data[offset + d] = static_cast<T>(centroid[d]);
+        }
       }
     });
 

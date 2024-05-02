@@ -3,6 +3,7 @@
 
 #include "virtual_index.h"
 #include "small_index.h"
+#include "filter_ivf_index.h"
 
 #include "../utils/point_range.h"
 #include "../utils/graph.h"
@@ -12,6 +13,7 @@
 #include <algorithm>
 #include <iostream>
 #include <cstring>
+#include <cmath>
 
 // limit, degree, alpha
 //BuildParams default_build_params = BuildParams(200, 32, 1.175);
@@ -66,6 +68,8 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
     std::unique_ptr<VamanaIndex<T, Point>> right = nullptr;
     uint32_t mid;*/
 
+    Filter_IVF<T, Point> ivf;
+
     VamanaIndex() = default;
 
     void fit(PointRange<T, Point>& points,
@@ -100,7 +104,10 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             right->fit(right_ni);
 
             mid = indices.size() / 2;
-        }*/
+        }
+        
+        size_t n_clusters = static_cast<size_t>(indices.size() / min_size);
+        ivf = Filter_IVF<T, Point>(naive_index.pr, timestamps, n_clusters);*/
     }
 
     void fit(PointRange<T, Point>& points,
@@ -335,14 +342,28 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         }
     }
 
+    // void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
+    //     auto endpoint_indices = naive_index._range_indices(endpoints);
+
+    //     auto frontier = _index_range_knn_with_real_index_distances(query, endpoint_indices, k);
+
+    //     for (size_t i = 0; i < k; i++) {
+    //         out[i] = frontier[i].second;
+    //     }
+    // }
+
     void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
         auto endpoint_indices = naive_index._range_indices(endpoints);
 
-        auto frontier = _index_range_knn_with_real_index_distances(query, endpoint_indices, k);
-
-        for (size_t i = 0; i < k; i++) {
-            out[i] = frontier[i].second;
+        if (endpoints.second - endpoints.first < exhaustive_fallback_cutoff) {
+            naive_index.range_knn(query, out, endpoints, k);
+        } else {
+            ivf.range_knn(query, out, endpoints, k);
         }
+    }*/
+
+    /*void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
+        naive_index.range_knn(query, out, endpoints, k);
     }*/
 
     void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
@@ -402,3 +423,4 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         return naive_index.pr.size();
     }
 };
+

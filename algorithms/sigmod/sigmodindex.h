@@ -292,7 +292,7 @@ private:
 
         range_indices = parlay::sequence<parlay::sequence<std::unique_ptr<BigIndex>>>();
         for (int level_scale = 1; points.size() / level_scale > DEFAULT_CUTOFF; level_scale *= 2) {
-            std::cout << "building level with windows of size 1/" << level_scale << "..." << std::flush;
+            std::cout << "Building windows of size 1/" << level_scale << "..." << std::flush;
             range_indices.push_back(parlay::sequence<std::unique_ptr<BigIndex>>::from_function(2 * level_scale - 1, [&] (size_t i) {
                 size_t range_start = i * points.size() / (2 * level_scale);
                 size_t range_end = (i + 2) * points.size() / (2 * level_scale);
@@ -309,7 +309,12 @@ private:
                 ptr->fit(points, timestamps_by_range, vectors_by_range);
                 return ptr;
             }));
-            std::cout << " done" << std::endl;
+            std::cout << " Done" << std::endl;
         }
     }
+
+    void execute_range_queries() {
+        
+    }
 };
+
