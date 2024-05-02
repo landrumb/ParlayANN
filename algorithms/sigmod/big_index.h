@@ -62,9 +62,9 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
     NaiveIndex<T, Point> naive_index;
     Graph<index_type> G;
 
-    std::unique_ptr<VamanaIndex<T, Point>> left = nullptr;
+    /*std::unique_ptr<VamanaIndex<T, Point>> left = nullptr;
     std::unique_ptr<VamanaIndex<T, Point>> right = nullptr;
-    uint32_t mid;
+    uint32_t mid;*/
 
     VamanaIndex() = default;
 
@@ -81,7 +81,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
 
         I.build_index(G, naive_index.pr, BuildStats);
 
-        if (points.size() >= min_size * 2) {
+        /*if (points.size() >= min_size * 2) {
             parlay::sequence<index_type> left_indices(indices.begin(), indices.begin() + indices.size() / 2);
             parlay::sequence<index_type> right_indices(indices.begin() + indices.size() / 2, indices.end());
 
@@ -100,7 +100,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
             right->fit(right_ni);
 
             mid = indices.size() / 2;
-        }
+        }*/
     }
 
     void fit(PointRange<T, Point>& points,
@@ -253,7 +253,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         }
     }
  */
-    parlay::sequence<std::pair<float, index_type>> _knn_with_real_index_distances(Point& query, size_t k) {
+    /*parlay::sequence<std::pair<float, index_type>> _knn_with_real_index_distances(Point& query, size_t k) {
         auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0, default_query_params);
 
         parlay::sequence<std::pair<float, index_type>> frontier(k);
@@ -265,7 +265,7 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         return frontier;
     }
 
-    /* endpoints here are local indices */
+    // endpoints here are local indices
     parlay::sequence<std::pair<float, index_type>> _index_range_knn_with_real_index_distances(Point& query, std::pair<index_type, index_type> endpoints, size_t k) {
         size_t size = endpoints.second - endpoints.first;
 
@@ -343,11 +343,9 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
         for (size_t i = 0; i < k; i++) {
             out[i] = frontier[i].second;
         }
-    }
+    }*/
 
-
-
-    /*void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
+    void range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) override {
         // we assume that the distribution of timestamps is uniform, and the distance between the endpoints is some good approximation of the selectivity
         float time_range = endpoints.second - endpoints.first;
 
@@ -379,7 +377,26 @@ struct VamanaIndex : public VirtualIndex<T, Point> {
                 std::cout << "Warning: not enough points in range" << std::endl;
             }
         }
-    }*/
+    }
+
+    void overretrieval_range_knn(Point& query, index_type* out, std::pair<float, float> endpoints, size_t k) {
+        QueryParams qp = default_query_params;
+        qp.k = qp.beamSize;
+        // qp.limit = static_cast<int>(qp.limit / (endpoints.second - endpoints.first));
+
+        auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point, PointRange<T, Point>, uint32_t>, index_type>(query, G, naive_index.pr, 0, qp);
+
+        auto frontier = pairElts.first;
+
+        // filter for the points which are in the time range
+        int found = 0;
+        for (size_t i = 0; i < frontier.size() && found < k; i++) {
+            if (naive_index.timestamps[frontier[i].first] >= endpoints.first && naive_index.timestamps[frontier[i].first] <= endpoints.second) {
+                out[found] = naive_index.pr.real_index(frontier[i].first);
+                found++;
+            }
+        }
+    }
 
     size_t size() const noexcept {
         return naive_index.pr.size();

@@ -66,6 +66,7 @@ public:
 
     BigIndex big_index;
     parlay::sequence<std::unique_ptr<VirtualIndex<T, Point>>> categorical_indices;
+    parlay::sequence<parlay::sequence<std::unique_ptr<BigIndex>>> range_indices;
 
     double qps_per_case[4] = {0., 0., 0., 0.};
 
@@ -111,7 +112,10 @@ public:
         std::cout << "Read points in " << t.next_time() << " seconds" << std::endl;
 
         init_categorical_indices();
-        std::cout << "Built small indices in " << t.next_time() << " seconds" << std::endl;
+        std::cout << "Built categorical indices in " << t.next_time() << " seconds" << std::endl;
+        
+        init_range_indices();
+        std::cout << "Built range indices in " << t.next_time() << " seconds" << std::endl;
 
         big_index.fit(points, timestamps);
         std::cout << "Built big index in " << t.next_time() << " seconds" << std::endl;
@@ -211,7 +215,19 @@ public:
             parlay::parallel_for(query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], [&](index_type i) {
                 auto [query_type, category, start, end, index] = queries[i];
                 Point query = Point(query_vectors + i * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                big_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+                //big_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+                if (end - start <= DEFAULT_CUTOFF) {
+                    big_index.naive_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+                }
+                else {
+                    double normalized_range_length = (double)(end - start) / points.size();
+                    int level;
+                    if (normalized_range_length >= 3.0 / 8.0) level = 0;
+                    else level = static_cast<int>(floor(log2(3.0 / 8.0 / normalized_range_length)));
+                    assert(level >= 0 && level < range_indices.size());
+                    assert((1ull << level) * start / points.size() < range_indices[level].size());
+                    range_indices[level][(1ull << level) * start / points.size()]->overretrieval_range_knn(query, out + index * K, std::make_pair(start, end), K);
+                }
             });
 
             double range_time = t.next_time();
@@ -247,8 +263,8 @@ public:
 
 private:
     void init_categorical_indices() {
-        auto vectors_by_label = parlay::sequence<parlay::sequence<uint32_t>>(max_label + 1);
-        auto timestamps_by_label = parlay::sequence<parlay::sequence<float>>(max_label + 1);
+        auto vectors_by_label = parlay::sequence<parlay::sequence<index_type>>(max_label + 1);
+        auto timestamps_by_label = parlay::sequence<parlay::sequence<T>>(max_label + 1);
 
         for (int i = 0; i < points.size(); i++) {
             vectors_by_label[labels[i]].push_back(i);
@@ -266,5 +282,34 @@ private:
                 return ptr;
             }
         });
+    }
+
+    void init_range_indices() {
+        auto sorted_index_map = parlay::sequence<index_type>::from_function(points.size(), [] (size_t i) -> index_type { return i; });
+        parlay::sort_inplace(sorted_index_map, [&] (index_type i, index_type j) -> bool {
+            return timestamps[i] < timestamps[j];
+        });
+
+        range_indices = parlay::sequence<parlay::sequence<std::unique_ptr<BigIndex>>>();
+        for (int level_scale = 1; points.size() / level_scale > DEFAULT_CUTOFF; level_scale *= 2) {
+            std::cout << "building level with windows of size 1/" << level_scale << "..." << std::flush;
+            range_indices.push_back(parlay::sequence<std::unique_ptr<BigIndex>>::from_function(2 * level_scale - 1, [&] (size_t i) {
+                size_t range_start = i * points.size() / (2 * level_scale);
+                size_t range_end = (i + 2) * points.size() / (2 * level_scale);
+                auto vectors_by_range = parlay::sequence<index_type>::from_function(range_end - range_start,
+                    [&] (size_t i) -> index_type {
+                        return sorted_index_map[range_start + i];
+                    });
+                auto timestamps_by_range = parlay::sequence<T>::from_function(vectors_by_range.size(),
+                    [&] (size_t i) -> T {
+                        return timestamps[vectors_by_range[i]];
+                    });
+
+                std::unique_ptr<BigIndex> ptr = std::make_unique<BigIndex>();
+                ptr->fit(points, timestamps_by_range, vectors_by_range);
+                return ptr;
+            }));
+            std::cout << " done" << std::endl;
+        }
     }
 };
