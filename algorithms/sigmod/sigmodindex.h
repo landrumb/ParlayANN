@@ -331,12 +331,18 @@ private:
         }
 #endif
     }
-
+    /* 
+    returns the index of the window a range with a given start will resolve to
+    within the specified level
+     */
     inline unsigned int which_window_in_level(int level, float start) {
         int window = static_cast<int>((1 << (level + 1)) * start);
         if (window == (1 << (level + 1)) - 1) window--;
         return window;
     }
+    /* 
+    returns the index of the index of a window given its level and index within that level
+    */
     inline unsigned int encode_window(int level, int window_in_level) {
         return (1 << (level + 1)) - 1 - level + window_in_level;
     }
@@ -346,7 +352,9 @@ private:
         auto bucketed_queries = parlay::sequence<std::pair<unsigned int, Query>>::from_function(queries_end - queries_start,
             [&] (size_t i) {
                 auto [query_type, category, start, end, index] = range_queries[queries_start + i];
+
                 int level = end - start >= 3.0 / 8.0 ? 0 : static_cast<int>(floor(log2(3.0 / 8.0 / (end - start)))) + 1;
+
                 if (level >= range_indices.size()) return std::make_pair(0u, range_queries[queries_start + i]);
                 int window_in_level = which_window_in_level(level, start);
                 return std::make_pair(encode_window(level, window_in_level), range_queries[queries_start + i]);
@@ -433,10 +441,36 @@ private:
     }
 
     inline void categorical_query(Query* queries, T* query_vectors, index_type* out, size_t categorical_query_count) {
+        // want to group queries and run them with batch_knn
+
+        // prefix sum the number of queries for each label
+        parlay::sequence<index_type> label_counts = parlay::sequence<index_type>(max_label + 2);
+        label_counts[0] = 0;
+        for (int i = 0; i < categorical_query_count; i++) {
+            label_counts[std::get<1>(queries[i]) + 1]++; // +1 because we want the prefix sum to have 0 at the beginning
+            // this makes label_counts[i-1] the start of that label's queries
+            // and label_counts[i] the end (exclusive) of that label's queries
+        }
+        for (int i = 1; i <= max_label + 1; i++) {
+            label_counts[i] += label_counts[i - 1];
+        }
+
+        // print first 3 elements for sanity
+        std::cout << "label_counts: " << label_counts[0] << " " << label_counts[1] << " " << label_counts[2] << std::endl;
+
+        T* categorical_query_vectors = static_cast<T*>(std::aligned_alloc(64, categorical_query_count * ALIGNED_DIM * sizeof(T)));
+        index_type** out_ptrs = static_cast<index_type**>(malloc(categorical_query_count * sizeof(index_type*)));
+
         parlay::parallel_for(0, categorical_query_count, [&](index_type i) {
             auto [query_type, category, start, end, index] = queries[i];
-            Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-            categorical_indices[category]->knn(query, out + index * K, K);
+            std::memcpy(categorical_query_vectors + i * ALIGNED_DIM, query_vectors + index * ALIGNED_DIM, DIM * sizeof(T));
+            out_ptrs[i] = out + index * K;
+        });
+
+        parlay::parallel_for(1, max_label + 1, [&](index_type c) {
+            if (label_counts[c - 1] != label_counts[c]) {
+                categorical_indices[c]->batch_knn(categorical_query_vectors + label_counts[c - 1] * ALIGNED_DIM, out_ptrs + label_counts[c - 1], K, label_counts[c] - label_counts[c - 1], (label_counts[c] - label_counts[c - 1] > 50));
+            }
         });
     }
 
