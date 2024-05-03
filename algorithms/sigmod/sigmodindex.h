@@ -206,7 +206,7 @@ public:
         // or even better big->range->categorical+categorical range
 
         // run big queries
-        //big_index_batch_query(queries, query_vectors, out, query_type_count[0]);
+        big_index_batch_query(queries, query_vectors, out, query_type_count[0]);
 
         double big_time = t.next_time();
         qps_per_case[0] = query_type_count[0] / big_time;
