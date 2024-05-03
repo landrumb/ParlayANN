@@ -35,7 +35,7 @@
 #define ALIGNED_DIM 112 
 #define K 100 // number of neighbors to return
 
-#define DEFAULT_CUTOFF 10'000
+#define DEFAULT_CUTOFF 50'000
 
 using index_type = uint32_t;
 using T = float;
@@ -206,7 +206,7 @@ public:
         // or even better big->range->categorical+categorical range
 
         // run big queries
-        big_index_batch_query(queries, query_vectors, out, query_type_count[0]);
+        //big_index_batch_query(queries, query_vectors, out, query_type_count[0]);
 
         double big_time = t.next_time();
         qps_per_case[0] = query_type_count[0] / big_time;
@@ -365,7 +365,7 @@ private:
         parlay::parallel_for(0, grouped_queries[0].size(), [&] (size_t i) {
                 auto [query_type, category, start, end, index] = grouped_queries[0][i];
                 Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
-                big_index.naive_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
+                range_indices[0][0]->naive_index.range_knn(query, out + index * K, std::make_pair(start, end), K);
             });
         time = timer.next_time();
         std::cout << "Exhaustive queries: " << grouped_queries[0].size() << " queries in " << time << " seconds (QPS: " << grouped_queries[0].size() / time << ")" << std::endl;
@@ -387,6 +387,24 @@ private:
 
             group_id += window_level.size();
         }
+/*
+        int group_id = 1;
+        int level_id = 0;
+        auto& window_level = range_indices[2];
+            parlay::parallel_for(0, window_level.size(), [&] (size_t i) {
+                    parlay::parallel_for(0, grouped_queries[group_id + i].size(), [&] (size_t j) {
+                            auto [query_type, category, start, end, index] = grouped_queries[group_id + i][j];
+                            Point query = Point(query_vectors + index * ALIGNED_DIM, DIM, ALIGNED_DIM, index);
+                            window_level[i]->range_knn(query, out + index * K, std::make_pair(start, end), K);
+                        }, 1);
+                });
+
+            time = timer.next_time();
+            int level_size = 0;
+            for (int i = 0; i < window_level.size(); i++) level_size += grouped_queries[group_id + i].size();
+            std::cout << "Level " << ++level_id << ": " << level_size << " queries in " << time << " seconds (QPS: " << level_size / time << ")" << std::endl;
+
+            group_id += window_level.size();*/
     }
 
     void execute_range_queries() {}
