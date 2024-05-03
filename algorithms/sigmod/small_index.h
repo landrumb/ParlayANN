@@ -105,8 +105,16 @@ struct NaiveIndex : public VirtualIndex<T, Point> {
     }
 
     inline void _write_indices_from_distances(parlay::sequence<std::pair<float, index_type>>&& distances, index_type* out, size_t k) const {
-        for (size_t i = 0; i < k; i++) {
-            out[i] = pr.real_index(distances[i].second);
+        if (distances.size() < k) {
+            std::cout << "Range of length " + std::to_string(distances.size()) + " too small for k = " + std::to_string(k) << std::endl;
+            for (size_t i = 0; i < distances.size(); i++) {
+                out[i] = pr.real_index(distances[i].second);
+            }
+            // throw std::runtime_error("Range too small for k");
+        } else {
+            for (size_t i = 0; i < k; i++) {
+                out[i] = pr.real_index(distances[i].second);
+            }
         }
     }
 
