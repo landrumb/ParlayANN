@@ -213,8 +213,8 @@ public:
         std::cout << "Ran " << query_type_count[0] << " big queries in " << big_time << " seconds (QPS: " << query_type_count[0] / big_time << ")" << std::endl;
 
         // run range queries
-        //big_index_range_query(queries + query_type_count[0] + query_type_count[1], query_vectors, out, query_type_count[2]);
-        windowed_range_queries(queries, query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], query_vectors, out);
+        big_index_range_query(queries + query_type_count[0] + query_type_count[1], query_vectors, out, query_type_count[2]);
+        //windowed_range_queries(queries, query_type_count[0] + query_type_count[1], query_type_count[0] + query_type_count[1] + query_type_count[2], query_vectors, out);
 
         double range_time = t.next_time();
         qps_per_case[2] = query_type_count[2] / range_time;
@@ -328,6 +328,11 @@ private:
                 return ptr;
             }));
             std::cout << " Done" << std::endl;
+
+            /*std::cout << range_indices[range_indices.size() - 1].size() << " windows" << std::endl;
+            for (int i = 0; i < range_indices[range_indices.size() - 1].size(); i++) {
+                std::cout << range_indices[range_indices.size() - 1][i]->G.size() << std::endl;
+            }*/
         }
 #endif
     }

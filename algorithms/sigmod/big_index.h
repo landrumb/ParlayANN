@@ -23,7 +23,7 @@ BuildParams default_build_params = BuildParams(500, 64, 1.175);
 //QueryParams default_query_params = QueryParams(100, 500, 0.9, 1000, 100);
 QueryParams default_query_params = QueryParams(100, 500, 1.35, 10000000, 100);
 
-QueryParams default_overretrieval_params = QueryParams(500, 500, 1.35, 10000000, 100);
+QueryParams default_overretrieval_params = QueryParams(500, 500, 1.35, 100000, 100);
 
 float exhaustive_fallback_cutoff = 0.25;
 size_t tiny_cutoff = 2000;
