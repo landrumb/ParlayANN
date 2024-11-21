@@ -1,4 +1,4 @@
-ifeq (, $(shell which jemalloc-config))
+ifeq (, $(shell which jemalloc-config 2> /dev/null))
 JEMALLOC =
 else
 JEMALLOCLD = $(shell jemalloc-config --libdir)
