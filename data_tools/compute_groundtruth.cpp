@@ -19,8 +19,11 @@
 using pid = std::pair<int, float>;
 using namespace parlayANN;
 
+size_t QUERY_BLOCK_SIZE = 256;
+size_t DATA_BLOCK_SIZE = 256;
+
 template<typename PointRange>
-parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B, 
+parlay::sequence<parlay::sequence<pid>> compute_groundtruth_seq(PointRange &B, 
   PointRange &Q, int k){
     unsigned d = B.dimension();
     size_t q = Q.size();
@@ -58,6 +61,111 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B,
     std::cout << "Done computing groundtruth" << std::endl;
     return answers;
 }
+
+template<typename PointRange>
+parlay::sequence<parlay::sequence<pid>> compute_groundtruth_batch(PointRange &B, 
+  PointRange &Q, int k, std::pair<int, int> queryRange, std::pair<int, int> dataRange){
+    unsigned d = B.dimension();
+    size_t q = queryRange.second - queryRange.first;
+
+    // Get the minimum distance possible in this distance metric
+    float topdist = B[0].d_min();
+
+    auto answers = parlay::tabulate(q, [&] (size_t i){  
+        int toppos;
+        parlay::sequence<pid> topk;
+        size_t qIndex = i + queryRange.first;
+
+        for(size_t j=dataRange.first; j<dataRange.second; j++){
+
+            float dist = Q[qIndex].distance(B[j]);
+            if(topk.size() < k){
+                if(dist > topdist){
+                    topdist = dist;   
+                    toppos = topk.size();
+                }
+                topk.push_back(std::make_pair((int) j, dist));
+            }
+            else if(dist < topdist){
+                // TODO Implement faster: update a sorted list of topk
+                // Find the point with the maximum distance in the topk
+                float new_topdist=B[0].d_min();  
+                int new_toppos=0;
+                topk[toppos] = std::make_pair((int) j, dist);
+                for(size_t l=0; l<topk.size(); l++){
+                    if(topk[l].second > new_topdist){
+                        new_topdist = topk[l].second;
+                        new_toppos = (int) l;
+                    }
+                }
+                topdist = new_topdist;
+                toppos = new_toppos;
+            }
+        }
+        return topk;
+    });
+    std::cout << "Done computing groundtruth" << std::endl;
+    return answers;
+}
+
+template<typename PointRange>
+parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B, 
+  PointRange &Q, int k){
+    size_t q = Q.size();
+    size_t b = B.size();
+    size_t numQueryBlocks = (q + QUERY_BLOCK_SIZE - 1) / QUERY_BLOCK_SIZE;
+    size_t numDataBlocks = (b + DATA_BLOCK_SIZE - 1) / DATA_BLOCK_SIZE;
+    auto answers = parlay::tabulate(numDataBlocks, [&] (size_t dataBlockIdx){
+      size_t start = dataBlockIdx * DATA_BLOCK_SIZE;
+      size_t end = std::min((dataBlockIdx + 1) * DATA_BLOCK_SIZE, b);
+      auto dataRange = std::make_pair(start, end);
+      auto result = parlay::tabulate(numQueryBlocks, [&] (size_t qBlockIdx){
+        size_t start = qBlockIdx * QUERY_BLOCK_SIZE;
+        size_t end = std::min((qBlockIdx + 1) * QUERY_BLOCK_SIZE, q);
+        auto queryRange = std::make_pair(start, end);
+        return compute_groundtruth_batch(B, Q, k, queryRange, dataRange);
+      }); // result has shape (numQueryBlocks, qBlockSize, k)
+      return parlay::flatten(result); // return has shape (q = numQueryBlocks * qBlockSize, k)
+    }); // answers has shape (numDataBlocks, q, k)
+    
+    // auto merged_answers = merge_answers(B, answers, q, k, numDataBlocks);
+    // Don't flatten the answers, merge the (q, k) matrices across numDataBlocks
+    auto merged_answers = parlay::tabulate(q, [&] (size_t i) {
+      parlay::sequence<pid> merged_topk;
+      float topdist = B[0].d_min();
+      int toppos;
+      for (size_t dataBlockIdx = 0; dataBlockIdx < numDataBlocks; dataBlockIdx++) {
+        for (size_t j = 0; j < answers[dataBlockIdx][i].size(); j++) {
+          float dist = answers[dataBlockIdx][i][j].second;
+          if (merged_topk.size() < k) {
+            if (dist > topdist) {
+              topdist = dist;
+              toppos = merged_topk.size();
+            }
+            merged_topk.push_back(answers[dataBlockIdx][i][j]);
+          } else if (dist < topdist) {
+            float new_topdist = B[0].d_min();
+            int new_toppos = 0;
+            merged_topk[toppos] = answers[dataBlockIdx][i][j];
+            for (size_t l = 0; l < merged_topk.size(); l++) {
+              if (merged_topk[l].second > new_topdist) {
+                new_topdist = merged_topk[l].second;
+                new_toppos = (int) l;
+              }
+            }
+            topdist = new_topdist;
+            toppos = new_toppos;
+          }
+        }
+      }
+      return merged_topk;
+    }); // merged_answers has shape (q, k)
+
+    return merged_answers;
+
+    // return parlay::flatten(answers);
+}
+
 
 // ibin is the same as the binary groundtruth format used in the
 // big-ann-benchmarks (see: https://big-ann-benchmarks.com/neurips21.html)
