@@ -19,8 +19,8 @@
 using pid = std::pair<int, float>;
 using namespace parlayANN;
 
-size_t QUERY_BLOCK_SIZE = 256;
-size_t DATA_BLOCK_SIZE = 256;
+size_t QUERY_BLOCK_SIZE = 100;
+size_t DATA_BLOCK_SIZE = 100;
 
 template<typename PointRange>
 parlay::sequence<parlay::sequence<pid>> compute_groundtruth_seq(PointRange &B, 
@@ -104,7 +104,6 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth_batch(PointRange &B,
         }
         return topk;
     });
-    std::cout << "Done computing groundtruth" << std::endl;
     return answers;
 }
 
