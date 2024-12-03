@@ -209,7 +209,7 @@ void write_ibin(parlay::sequence<parlay::sequence<pid>> &result, const std::stri
 int main(int argc, char* argv[]) {
   commandLine P(argc,argv,
   "[-base_path <b>] [-query_path <q>] "
-      "[-data_type <d>] [-k <k> ] [-dist_func <d>] [-gt_path <outfile>]");
+      "[-data_type <d>] [-k <k> ] [-dist_func <d>] [-gt_path <outfile>] [-query_block_size <qbs>] [-data_block_size <dbs>]");
 
   char* gFile = P.getOptionValue("-gt_path");
   char* qFile = P.getOptionValue("-query_path");
@@ -217,6 +217,8 @@ int main(int argc, char* argv[]) {
   char* vectype = P.getOptionValue("-data_type");
   char* dfc = P.getOptionValue("-dist_func");
   int k = P.getOptionIntValue("-k", 100);
+  QUERY_BLOCK_SIZE = P.getOptionIntValue("-query_block_size", 100);
+  DATA_BLOCK_SIZE = P.getOptionIntValue("-data_block_size", 100);
 
   std::string df = std::string(dfc);
   if(df != "Euclidian" && df != "mips"){
