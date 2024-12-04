@@ -1,7 +1,7 @@
 # %%
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import numpy as np
 # %%
 strong_scaling = pd.read_csv('groundtruth_strong_scaling.txt', sep=' ')
 strong_scaling['time'] = strong_scaling['end'] - strong_scaling['start']
@@ -61,4 +61,45 @@ ax[1].set_ylabel('Time (s)')
 
 plt.show()
 
+# %%
+# grid of block sizes
+grid_values = pd.read_csv('groundtruth_block_grid.txt', sep=' ')
+grid_values['time'] = grid_values['end'] - grid_values['start']
+grid_values['bpps'] = grid_values['data_size'] / grid_values['time']
+grid_values
+# %%
+# heatmap of runtimes vs block sizes
+
+pivot = grid_values.pivot(columns='b_block', index='q_block', values='time')
+
+fig, ax = plt.subplots(figsize=(6, 6))
+cax = ax.imshow(pivot.values, cmap='viridis', interpolation='nearest', aspect='auto')
+
+# add color bar
+fig.colorbar(cax)
+
+# set x and y ticks
+x_labels = pivot.columns
+y_labels = pivot.index
+
+ax.set_xticks(np.arange(len(x_labels)))
+ax.set_yticks(np.arange(len(y_labels)))
+ax.set_xticklabels(x_labels)
+ax.set_yticklabels(y_labels)
+
+# rotate x-axis labels if needed
+plt.xticks(rotation=90)
+
+# add annotations (optional)
+data = pivot.values
+for i in range(data.shape[0]):
+    for j in range(data.shape[1]):
+        ax.text(j, i, f'{data[i, j]:.2f}', ha='center', va='center', color='white', rotation=-45)
+
+# axis labels
+ax.set_xlabel('Data block size')
+ax.set_ylabel('Query block size')
+
+plt.tight_layout()
+plt.show()
 # %%
