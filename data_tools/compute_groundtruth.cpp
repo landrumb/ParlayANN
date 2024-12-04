@@ -120,7 +120,7 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B,
         return compute_groundtruth_batch(B, Q, k, queryRange, dataRange);
       }); // result has shape (numQueryBlocks, qBlockSize, k)
       return parlay::flatten(result); // return has shape (q = numQueryBlocks * qBlockSize, k)
-    }); // answers has shape (numDataBlocks, q, k)
+    }, 1000000000); // answers has shape (numDataBlocks, q, k)
     
     // auto merged_answers = merge_answers(B, answers, q, k, numDataBlocks);
     // Don't flatten the answers, merge the (q, k) matrices across numDataBlocks
