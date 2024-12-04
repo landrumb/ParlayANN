@@ -20,7 +20,7 @@ using pid = std::pair<int, float>;
 using namespace parlayANN;
 
 size_t QUERY_BLOCK_SIZE = 100;
-size_t DATA_BLOCK_SIZE = 100;
+size_t DATA_BLOCK_SIZE = 5000;
 
 struct PriorityQueue {
   size_t k;
@@ -190,7 +190,7 @@ int main(int argc, char* argv[]) {
   char* dfc = P.getOptionValue("-dist_func");
   int k = P.getOptionIntValue("-k", 100);
   QUERY_BLOCK_SIZE = P.getOptionIntValue("-query_block_size", 100);
-  DATA_BLOCK_SIZE = P.getOptionIntValue("-data_block_size", 100);
+  DATA_BLOCK_SIZE = P.getOptionIntValue("-data_block_size", 5000);
 
   std::string df = std::string(dfc);
   if(df != "Euclidian" && df != "mips"){
