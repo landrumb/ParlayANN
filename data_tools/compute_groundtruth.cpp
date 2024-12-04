@@ -22,6 +22,41 @@ using namespace parlayANN;
 size_t QUERY_BLOCK_SIZE = 100;
 size_t DATA_BLOCK_SIZE = 100;
 
+struct PriorityQueue {
+  size_t k;
+  parlay::sequence<pid> pq;
+
+  PriorityQueue(size_t k) : k(k) {
+    pq.reserve(k);
+    for (size_t i = 0; i < k; i++) {
+      pq.push_back(std::make_pair(-1, std::numeric_limits<float>::max()));
+    }
+  }
+
+  PriorityQueue(parlay::sequence<pid> pq) : k(pq.size()), pq(std::move(pq)) {
+    std::sort(pq.begin(), pq.end(), [] (pid a, pid b) {return a.second < b.second;});
+  }
+
+  bool insert(pid p) {
+    if (p.second > pq[this->k - 1].second) {
+      return false;
+    }
+    pq[this->k - 1] = p;
+    std::sort(pq.begin(), pq.end(), [] (pid a, pid b) {return a.second < b.second;});
+    return true;
+  }
+
+  parlay::sequence<pid> get() {
+    return pq;
+  }
+
+  void merge(PriorityQueue &other) {
+    this->pq.insert(this->pq.end(), other.pq.begin(), other.pq.end());
+    std::sort(this->pq.begin(), this->pq.end(), [] (pid a, pid b) {return a.second < b.second;});
+    this->pq.resize(this->k);
+  }
+};
+
 template<typename PointRange>
 parlay::sequence<parlay::sequence<pid>> compute_groundtruth_seq(PointRange &B, 
   PointRange &Q, int k){
@@ -31,32 +66,13 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth_seq(PointRange &B,
     auto answers = parlay::tabulate(q, [&] (size_t i){  
         float topdist = B[0].d_min();   
         int toppos;
-        parlay::sequence<pid> topk;
-        for(size_t j=0; j<b; j++){
-            // float dist = D->distance((Q[i].coordinates).begin(), (B[j].coordinates).begin(), d);
+        PriorityQueue pq(k);
+        for(size_t j = 0; j < b; j++) {
             float dist = Q[i].distance(B[j]);
-            if(topk.size() < k){
-                if(dist > topdist){
-                    topdist = dist;   
-                    toppos = topk.size();
-                }
-                topk.push_back(std::make_pair((int) j, dist));
-            }
-            else if(dist < topdist){
-                float new_topdist=B[0].d_min();  
-                int new_toppos=0;
-                topk[toppos] = std::make_pair((int) j, dist);
-                for(size_t l=0; l<topk.size(); l++){
-                    if(topk[l].second > new_topdist){
-                        new_topdist = topk[l].second;
-                        new_toppos = (int) l;
-                    }
-                }
-                topdist = new_topdist;
-                toppos = new_toppos;
-            }
+            pq.insert(std::make_pair((int) j, dist));
         }
-        return topk;
+
+        return pq.get();
     });
     std::cout << "Done computing groundtruth" << std::endl;
     return answers;
@@ -73,36 +89,15 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth_batch(PointRange &B,
 
     auto answers = parlay::tabulate(q, [&] (size_t i){  
         int toppos;
-        parlay::sequence<pid> topk;
+        PriorityQueue pq(k);
         size_t qIndex = i + queryRange.first;
 
         for(size_t j=dataRange.first; j<dataRange.second; j++){
-
             float dist = Q[qIndex].distance(B[j]);
-            if(topk.size() < k){
-                if(dist > topdist){
-                    topdist = dist;   
-                    toppos = topk.size();
-                }
-                topk.push_back(std::make_pair((int) j, dist));
-            }
-            else if(dist < topdist){
-                // TODO Implement faster: update a sorted list of topk
-                // Find the point with the maximum distance in the topk
-                float new_topdist=B[0].d_min();  
-                int new_toppos=0;
-                topk[toppos] = std::make_pair((int) j, dist);
-                for(size_t l=0; l<topk.size(); l++){
-                    if(topk[l].second > new_topdist){
-                        new_topdist = topk[l].second;
-                        new_toppos = (int) l;
-                    }
-                }
-                topdist = new_topdist;
-                toppos = new_toppos;
-            }
+            pq.insert(std::make_pair((int) j, dist));
         }
-        return topk;
+
+        return pq.get();
     });
     return answers;
 }
@@ -130,39 +125,16 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B,
     // auto merged_answers = merge_answers(B, answers, q, k, numDataBlocks);
     // Don't flatten the answers, merge the (q, k) matrices across numDataBlocks
     auto merged_answers = parlay::tabulate(q, [&] (size_t i) {
-      parlay::sequence<pid> merged_topk;
-      float topdist = B[0].d_min();
-      int toppos;
+      PriorityQueue merged_topk(k);
+      
       for (size_t dataBlockIdx = 0; dataBlockIdx < numDataBlocks; dataBlockIdx++) {
-        for (size_t j = 0; j < answers[dataBlockIdx][i].size(); j++) {
-          float dist = answers[dataBlockIdx][i][j].second;
-          if (merged_topk.size() < k) {
-            if (dist > topdist) {
-              topdist = dist;
-              toppos = merged_topk.size();
-            }
-            merged_topk.push_back(answers[dataBlockIdx][i][j]);
-          } else if (dist < topdist) {
-            float new_topdist = B[0].d_min();
-            int new_toppos = 0;
-            merged_topk[toppos] = answers[dataBlockIdx][i][j];
-            for (size_t l = 0; l < merged_topk.size(); l++) {
-              if (merged_topk[l].second > new_topdist) {
-                new_topdist = merged_topk[l].second;
-                new_toppos = (int) l;
-              }
-            }
-            topdist = new_topdist;
-            toppos = new_toppos;
-          }
-        }
+        PriorityQueue pq(answers[dataBlockIdx][i]);
+        merged_topk.merge(pq);
       }
-      return merged_topk;
+      return merged_topk.get();
     }); // merged_answers has shape (q, k)
 
     return merged_answers;
-
-    // return parlay::flatten(answers);
 }
 
 
