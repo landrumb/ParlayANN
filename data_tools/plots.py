@@ -16,20 +16,24 @@ strong_scaling
 strong_scaling['bpps'] = 1000000 / strong_scaling['time']
 
 # %%
-original = strong_scaling[strong_scaling['q_block'] == 1]
-blocked = strong_scaling[strong_scaling['q_block'] == 100]
+original_strong_scaling = strong_scaling[strong_scaling['q_block'] == 1]
+blocked_strong_scaling = strong_scaling[strong_scaling['q_block'] == 100]
 
 fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-ax[0].plot(original['nproc'], original['bpps'], label='Original')
-ax[0].plot(blocked['nproc'], blocked['bpps'], label='Blocked')
+ax[0].plot(original_strong_scaling['nproc'], original_strong_scaling['bpps'], label='Original')
+ax[0].plot(blocked_strong_scaling['nproc'], blocked_strong_scaling['bpps'], label='Blocked')
 ax[0].set_xlabel('Number of threads')
 ax[0].set_ylabel('Base points per second')
 ax[0].legend()
 
-ax[1].plot(original['nproc'], original['time'], label='Original')
-ax[1].plot(blocked['nproc'], blocked['time'], label='Blocked')
+ax[1].plot(original_strong_scaling['nproc'], original_strong_scaling['time'], label='Original')
+ax[1].plot(blocked_strong_scaling['nproc'], blocked_strong_scaling['time'], label='Blocked')
 ax[1].set_xlabel('Number of threads')
 ax[1].set_ylabel('Time (s)')
+
+
+fig.tight_layout()
+fig.savefig('plots/strong_scaling.png', dpi=300)
 
 plt.show()
 
@@ -44,26 +48,51 @@ scaling
 scaling['bpps'] = scaling['data_size'] / scaling['time']
 
 # %%
-original = scaling[scaling['q_block'] == 1]
-blocked = scaling[scaling['q_block'] == 100]
+original_scaling = scaling[scaling['q_block'] == 1]
+blocked_scaling = scaling[scaling['q_block'] == 100]
 
 fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-ax[0].plot(original['data_size'], original['bpps'], label='Original')
-ax[0].plot(blocked['data_size'], blocked['bpps'], label='Blocked')
+ax[0].plot(original_scaling['data_size'], original_scaling['bpps'], label='Original')
+ax[0].plot(blocked_scaling['data_size'], blocked_scaling['bpps'], label='Blocked')
 ax[0].set_xlabel('Base points')
 ax[0].set_ylabel('Base points per second')
 ax[0].legend()
 
-ax[1].plot(original['data_size'], original['time'], label='Original')
-ax[1].plot(blocked['data_size'], blocked['time'], label='Blocked')
+ax[1].plot(original_scaling['data_size'], original_scaling['time'], label='Original')
+ax[1].plot(blocked_scaling['data_size'], blocked_scaling['time'], label='Blocked')
 ax[1].set_xlabel('Base points')
 ax[1].set_ylabel('Time (s)')
+
+fig.tight_layout()
+fig.savefig('plots/scaling.png', dpi=300)
 
 plt.show()
 
 # %%
+# subplots of the bpps of the previous two plots
+fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+ax[0].plot(original_scaling['data_size'], original_scaling['bpps'], label='Original')
+ax[0].plot(blocked_scaling['data_size'], blocked_scaling['bpps'], label='Blocked')
+ax[0].set_xlabel('Base points')
+ax[0].set_ylabel('Base points per second')
+ax[0].legend()
+ax[0].set_title('Scaling')
+# ax[0].set_xscale('log')
+
+ax[1].plot(original_strong_scaling['nproc'], original_strong_scaling['bpps'], label='Original')
+ax[1].plot(blocked_strong_scaling['nproc'], blocked_strong_scaling['bpps'], label='Blocked')
+ax[1].set_xlabel('Number of threads')
+ax[1].set_ylabel('Base points per second')
+ax[1].legend()
+ax[1].set_title('Strong Scaling')
+
+fig.tight_layout()
+fig.savefig('plots/bpps.png', dpi=300)
+
+plt.show()
+# %%
 # grid of block sizes
-grid_values = pd.read_csv('groundtruth_block_grid.txt', sep=' ')
+grid_values = pd.read_csv('groundtruth_block_grid_serial_outer.txt', sep=' ')
 grid_values['time'] = grid_values['end'] - grid_values['start']
 grid_values['bpps'] = grid_values['data_size'] / grid_values['time']
 grid_values
@@ -101,5 +130,7 @@ ax.set_xlabel('Data block size')
 ax.set_ylabel('Query block size')
 
 plt.tight_layout()
+fig.savefig('plots/block_grid_heatmap.png', dpi=300)
+
 plt.show()
 # %%
