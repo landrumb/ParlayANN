@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=groundtruth_profiling
-#SBATCH --output=groundtruth_profiling_%j.out
-#SBATCH --error=groundtruth_profiling_%j.err
+#SBATCH --job-name=groundtruth_profile_w_craypat
+#SBATCH --output=groundtruth_profile_w_craypat_%j.out
+#SBATCH --error=groundtruth_profile_w_craypat_%j.err
 #SBATCH --time=00:30:00
 #SBATCH --qos=debug
 #SBATCH --nodes=1
@@ -28,16 +28,10 @@ DATA_DIR="/pscratch/sd/l/landrum/data/gist"
 
 executable="./compute_groundtruth+pat"
 
-# # warmup
-# $executable -base_path ${DATA_DIR}/gist_learn.fbin \
-#     -query_path ${DATA_DIR}/gist_query.fbin -data_type float \
-#     -k 100 -dist_func Euclidian -gt_path ${DATA_DIR}/gist_groundtruth_profiling.ivecs
-# echo "ran warmup"
-
 echo "Profiling groundtruth"
 start_time=$(date +%s.%N)
 $executable -base_path ${DATA_DIR}/gist_learn.fbin \
     -query_path ${DATA_DIR}/gist_query.fbin -data_type float \
-    -k 100 -dist_func Euclidian -gt_path ${DATA_DIR}/gist_groundtruth_profiling.ivecs
+    -k 100 -dist_func Euclidian -gt_path ${DATA_DIR}/gist_groundtruth_profile_w_craypat.ivecs
 end_time=$(date +%s.%N)
-echo $start_time $end_time "100" "gist" >> groundtruth_profiling.txt
+echo $start_time $end_time "100" "gist" >> groundtruth_profile_w_craypat.txt
