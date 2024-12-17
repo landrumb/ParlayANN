@@ -16,42 +16,57 @@ size_t QUERY_BLOCK_SIZE = 100;
 size_t DATA_BLOCK_SIZE = 5000;
 
 struct PriorityQueue {
+  using compare_desc = std::function<bool(const pid&, const pid&)>;
+
   size_t k;
+  // store elements as a "max-heap" so the largest distance is at the front
+  // this way insertion is O(log k) instead of a full O(k log k) sort.
+  // at the end, we can sort ascending if needed.
   parlay::sequence<pid> pq;
 
-  PriorityQueue(size_t k) : k(k) {
-    pq.reserve(k);
-    for (size_t i = 0; i < k; i++) {
-      pq.push_back(std::make_pair(-1, std::numeric_limits<float>::max()));
+  struct max_cmp {
+    bool operator()(const pid &a, const pid &b) const {
+      // bigger distance => "less" => top of the heap
+      return a.second < b.second;
     }
-    // sorted ascending by distance
-    std::sort(pq.begin(), pq.end(), [] (pid a, pid b) {return a.second < b.second;});
+  };
+
+  PriorityQueue(size_t k) : k(k) {
+    pq.resize(k, std::make_pair(-1, std::numeric_limits<float>::max()));
+    // build a max-heap of size k, all distances initialized to infinity
+    std::make_heap(pq.begin(), pq.end(), max_cmp());
   }
 
-  PriorityQueue(parlay::sequence<pid> pq) : k(pq.size()), pq(std::move(pq)) {
-    std::sort(this->pq.begin(), this->pq.end(), [] (pid a, pid b) {return a.second < b.second;});
+  PriorityQueue(parlay::sequence<pid> arr) : k(arr.size()), pq(std::move(arr)) {
+    // build max-heap in-place
+    std::make_heap(pq.begin(), pq.end(), max_cmp());
   }
 
   bool insert(pid p) {
-    if (p.second > pq[k - 1].second) {
-      return false;
-    }
-    pq[k - 1] = p;
-    // keep sorted
-    std::sort(pq.begin(), pq.end(), [] (pid a, pid b) {return a.second < b.second;});
+    // if p is worse (i.e. distance >= largest distance in the heap) skip
+    if (p.second >= pq.front().second) return false;
+    // otherwise pop the worst element, add p, push back up
+    std::pop_heap(pq.begin(), pq.end(), max_cmp());
+    pq.back() = p;
+    std::push_heap(pq.begin(), pq.end(), max_cmp());
     return true;
   }
 
+  // returning a sorted ascending sequence
   parlay::sequence<pid> get() const {
-    return pq;
+    parlay::sequence<pid> out = pq; 
+    std::sort(out.begin(), out.end(), [] (pid a, pid b) {return a.second < b.second;});
+    return out;
   }
 
   void merge(PriorityQueue &other) {
-    pq.insert(pq.end(), other.pq.begin(), other.pq.end());
-    std::sort(pq.begin(), pq.end(), [] (pid a, pid b) {return a.second < b.second;});
-    pq.resize(k);
+    // merge by inserting each element from 'other' 
+    for (auto &x : other.pq) {
+      insert(x);
+    }
   }
 };
+
 
 template<typename PointRange>
 parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B, PointRange &Q, int k) {
