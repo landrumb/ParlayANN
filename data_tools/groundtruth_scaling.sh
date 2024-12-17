@@ -38,7 +38,7 @@ for slice_size in ${slice_sizes[@]}; do
         -query_path ${DATA_DIR}/query_10000.fbin -data_type float \
         -dist_func Euclidian -k 100 -gt_path ${DATA_DIR}/GT/test.gt
     end_time=$(date +%s.%N)
-    echo $start_time $end_time "100" "100" "gist" $slice_size >> groundtruth_scaling.txt
+    echo $start_time $end_time "100" "5000" "gist" $slice_size >> groundtruth_scaling.txt
 done
 
 executable="./compute_groundtruth_old"
