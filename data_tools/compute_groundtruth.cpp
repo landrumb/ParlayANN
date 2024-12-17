@@ -1,10 +1,3 @@
-/*
-  Example usage:
-    ./compute_groundtruth -base_path ~/data/sift/sift-1M \
-    -query_path ~/data/sift/query-10K -data_type uint8 \
-    -dist_func Euclidian -k 100 -gt_path ~/data/sift/GT/sift-1M.gt
-*/
-
 #include <iostream>
 #include <algorithm>
 #include <cstdint>
@@ -31,110 +24,66 @@ struct PriorityQueue {
     for (size_t i = 0; i < k; i++) {
       pq.push_back(std::make_pair(-1, std::numeric_limits<float>::max()));
     }
-  }
-
-  PriorityQueue(parlay::sequence<pid> pq) : k(pq.size()), pq(std::move(pq)) {
+    // sorted ascending by distance
     std::sort(pq.begin(), pq.end(), [] (pid a, pid b) {return a.second < b.second;});
   }
 
+  PriorityQueue(parlay::sequence<pid> pq) : k(pq.size()), pq(std::move(pq)) {
+    std::sort(this->pq.begin(), this->pq.end(), [] (pid a, pid b) {return a.second < b.second;});
+  }
+
   bool insert(pid p) {
-    if (p.second > pq[this->k - 1].second) {
+    if (p.second > pq[k - 1].second) {
       return false;
     }
-    pq[this->k - 1] = p;
+    pq[k - 1] = p;
+    // keep sorted
     std::sort(pq.begin(), pq.end(), [] (pid a, pid b) {return a.second < b.second;});
     return true;
   }
 
-  parlay::sequence<pid> get() {
+  parlay::sequence<pid> get() const {
     return pq;
   }
 
   void merge(PriorityQueue &other) {
-    this->pq.insert(this->pq.end(), other.pq.begin(), other.pq.end());
-    std::sort(this->pq.begin(), this->pq.end(), [] (pid a, pid b) {return a.second < b.second;});
-    this->pq.resize(this->k);
+    pq.insert(pq.end(), other.pq.begin(), other.pq.end());
+    std::sort(pq.begin(), pq.end(), [] (pid a, pid b) {return a.second < b.second;});
+    pq.resize(k);
   }
 };
 
 template<typename PointRange>
-parlay::sequence<parlay::sequence<pid>> compute_groundtruth_seq(PointRange &B, 
-  PointRange &Q, int k){
-    unsigned d = B.dimension();
-    size_t q = Q.size();
-    size_t b = B.size();
-    auto answers = parlay::tabulate(q, [&] (size_t i){  
-        float topdist = B[0].d_min();   
-        int toppos;
-        PriorityQueue pq(k);
-        for(size_t j = 0; j < b; j++) {
-            float dist = Q[i].distance(B[j]);
-            pq.insert(std::make_pair((int) j, dist));
-        }
+parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B, PointRange &Q, int k) {
+  size_t q = Q.size();
+  size_t b = B.size();
+  size_t numDataBlocks = (b + DATA_BLOCK_SIZE - 1) / DATA_BLOCK_SIZE;
 
-        return pq.get();
-    });
-    std::cout << "Done computing groundtruth" << std::endl;
-    return answers;
-}
+  // partial results for each query
+  parlay::sequence<PriorityQueue> partialResults(q, PriorityQueue(k));
 
-template<typename PointRange>
-parlay::sequence<parlay::sequence<pid>> compute_groundtruth_batch(PointRange &B, 
-  PointRange &Q, int k, std::pair<int, int> queryRange, std::pair<int, int> dataRange){
-    unsigned d = B.dimension();
-    size_t q = queryRange.second - queryRange.first;
+  // serial loop over data blocks
+  for (size_t dataBlockIdx = 0; dataBlockIdx < numDataBlocks; dataBlockIdx++) {
+    size_t start = dataBlockIdx * DATA_BLOCK_SIZE;
+    size_t end = std::min((dataBlockIdx + 1) * DATA_BLOCK_SIZE, b);
 
-    // Get the minimum distance possible in this distance metric
-    float topdist = B[0].d_min();
-
-    auto answers = parlay::tabulate(q, [&] (size_t i){  
-        int toppos;
-        PriorityQueue pq(k);
-        size_t qIndex = i + queryRange.first;
-
-        for(size_t j=dataRange.first; j<dataRange.second; j++){
-            float dist = Q[qIndex].distance(B[j]);
-            pq.insert(std::make_pair((int) j, dist));
-        }
-
-        return pq.get();
-    });
-    return answers;
-}
-
-template<typename PointRange>
-parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B, 
-  PointRange &Q, int k){
-    size_t q = Q.size();
-    size_t b = B.size();
-    size_t numQueryBlocks = (q + QUERY_BLOCK_SIZE - 1) / QUERY_BLOCK_SIZE;
-    size_t numDataBlocks = (b + DATA_BLOCK_SIZE - 1) / DATA_BLOCK_SIZE;
-    auto answers = parlay::tabulate(numDataBlocks, [&] (size_t dataBlockIdx){
-      size_t start = dataBlockIdx * DATA_BLOCK_SIZE;
-      size_t end = std::min((dataBlockIdx + 1) * DATA_BLOCK_SIZE, b);
-      auto dataRange = std::make_pair(start, end);
-      auto result = parlay::tabulate(numQueryBlocks, [&] (size_t qBlockIdx){
-        size_t start = qBlockIdx * QUERY_BLOCK_SIZE;
-        size_t end = std::min((qBlockIdx + 1) * QUERY_BLOCK_SIZE, q);
-        auto queryRange = std::make_pair(start, end);
-        return compute_groundtruth_batch(B, Q, k, queryRange, dataRange);
-      }); // result has shape (numQueryBlocks, qBlockSize, k)
-      return parlay::flatten(result); // return has shape (q = numQueryBlocks * qBlockSize, k)
-    }, 1000000000); // answers has shape (numDataBlocks, q, k)
-    
-    // auto merged_answers = merge_answers(B, answers, q, k, numDataBlocks);
-    // Don't flatten the answers, merge the (q, k) matrices across numDataBlocks
-    auto merged_answers = parlay::tabulate(q, [&] (size_t i) {
-      PriorityQueue merged_topk(k);
-      
-      for (size_t dataBlockIdx = 0; dataBlockIdx < numDataBlocks; dataBlockIdx++) {
-        PriorityQueue pq(answers[dataBlockIdx][i]);
-        merged_topk.merge(pq);
+    // parallel for loop over all queries
+    parlay::parallel_for(0, q, [&](size_t i) {
+      for (size_t j = start; j < end; j++) {
+        float dist = Q[i].distance(B[j]);
+        partialResults[i].insert(std::make_pair((int) j, dist));
       }
-      return merged_topk.get();
-    }); // merged_answers has shape (q, k)
+    });
+  }
 
-    return merged_answers;
+  // finalize and gather results
+  parlay::sequence<parlay::sequence<pid>> answers(q);
+  parlay::parallel_for(0, q, [&](size_t i){
+    answers[i] = partialResults[i].get();
+  });
+
+  std::cout << "done computing groundtruth" << std::endl;
+  return answers;
 }
 
 
@@ -180,8 +129,8 @@ void write_ibin(parlay::sequence<parlay::sequence<pid>> &result, const std::stri
 
 int main(int argc, char* argv[]) {
   commandLine P(argc,argv,
-  "[-base_path <b>] [-query_path <q>] "
-      "[-data_type <d>] [-k <k> ] [-dist_func <d>] [-gt_path <outfile>] [-query_block_size <qbs>] [-data_block_size <dbs>]");
+    "[-base_path <b>] [-query_path <q>] "
+    "[-data_type <d>] [-k <k> ] [-dist_func <d>] [-gt_path <outfile>] [-query_block_size <qbs>] [-data_block_size <dbs>]");
 
   char* gFile = P.getOptionValue("-gt_path");
   char* qFile = P.getOptionValue("-query_path");
@@ -211,7 +160,6 @@ int main(int argc, char* argv[]) {
   parlay::sequence<parlay::sequence<pid>> answers;
   std::string base = std::string(bFile);
   std::string query = std::string(qFile);
-
 
   if(tp == "float"){
     std::cout << "Detected float coordinates" << std::endl;
