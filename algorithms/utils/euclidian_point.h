@@ -31,7 +31,7 @@
 #include "parlay/internal/file_map.h"
 
 #include "types.h"
-//#include "NSGDist.h"
+// #include "NSGDist.h"
 // #include "common/time_loop.h"
 
 #include <fcntl.h>
@@ -39,6 +39,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <immintrin.h>
 
 namespace parlayANN {
 
@@ -80,13 +82,41 @@ float euclidian_distance(const int8_t *p, const int8_t *q, unsigned d) {
   return (float)result;
 }
 
+
 float euclidian_distance(const float *p, const float *q, unsigned d) {
-  //efanna2e::DistanceL2 distfunc;
-  //return distfunc.compare(p, q, d);
-  float result = 0.0;
-  for (int i = 0; i < d; i++)
-    result += (q[i] - p[i]) * (q[i] - p[i]);
-  return (float)result;
+    unsigned i = 0; // gets reused when we do the remainder, or is the loop counter if we don't have AVX2
+
+    #ifdef __AVX2__
+    __m256 sum = _mm256_setzero_ps();
+    for (; i + 16 <= d; i += 16) {
+        __m256 p0 = _mm256_loadu_ps(p + i);
+        __m256 q0 = _mm256_loadu_ps(q + i);
+        __m256 diff0 = _mm256_sub_ps(p0, q0);
+        diff0 = _mm256_mul_ps(diff0, diff0);
+        sum = _mm256_add_ps(sum, diff0);
+
+        __m256 p1 = _mm256_loadu_ps(p + i + 8);
+        __m256 q1 = _mm256_loadu_ps(q + i + 8);
+        __m256 diff1 = _mm256_sub_ps(p1, q1);
+        diff1 = _mm256_mul_ps(diff1, diff1);
+        sum = _mm256_add_ps(sum, diff1);
+    }
+
+    float unpack[8] __attribute__((aligned(32)));
+    _mm256_storeu_ps(unpack, sum);
+    float result = unpack[0] + unpack[1] + unpack[2] + unpack[3] 
+                 + unpack[4] + unpack[5] + unpack[6] + unpack[7];
+    #else
+    float result = 0;
+    #endif // __AVX2__
+
+    // handle remainder
+    for (; i < d; ++i) {
+        float diff = p[i] - q[i];
+        result += diff * diff;
+    }
+
+    return result;
 }
 
 template<typename T_, long range=(1l << sizeof(T_)*8) - 1>
