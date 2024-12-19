@@ -1,0 +1,474 @@
+CrayPat/X:  Version 23.12.0 Revision 67ffc52e7 sles15.4_x86_64  11/13/23 21:04:20
+
+Number of PEs (MPI ranks):     1
+                           
+Numbers of PEs per Node:       1
+                           
+Numbers of Threads per PE:   256
+                           
+Number of Cores per Socket:   64
+
+Execution start time:  Thu Dec 19 06:04:07 2024
+
+System name and speed:  nid005441  2.452 GHz (nominal)
+
+AMD   Milan                CPU  Family: 25  Model:  1  Stepping:  1
+
+Core Performance Boost:  256 PEs have CPB capability
+
+Current path to data file:
+  /global/homes/a/anmol/test/ParlayANN/data_tools/compute_groundtruth+pat+orig   (RTS)
+
+
+Notes for table 1:
+
+  This table shows functions that have significant exclusive sample
+    hits, averaged across ranks.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O samp_profile ...
+
+Table 1:  Sample Profile by Function
+
+  Samp% |  Samp | Imb. |  Imb. | Group
+        |       | Samp | Samp% |  Function
+        |       |      |       |   Thread=HIDE
+       
+ 100.0% | 363.0 |   -- |    -- | Total
+|-----------------------------------------------------------------------------
+|  80.2% | 291.0 |   -- |    -- | USER
+||----------------------------------------------------------------------------
+||  60.1% | 218.0 | 32.8 | 13.0% | parlay::fork_join_scheduler::parfor_<>
+||  11.6% |  42.0 |   -- |    -- | parlay::sequence<>::sequence<>::{lambda#1}::operator()
+||   8.3% |  30.0 | 28.6 | 75.4% | parlay::scheduler<>::try_steal
+||============================================================================
+|   9.6% |  35.0 |   -- |    -- | PTHREAD
+||----------------------------------------------------------------------------
+||   9.6% |  35.0 |   -- |    -- | pthread_create
+||============================================================================
+|   7.4% |  27.0 |   -- |    -- | ETC
+||----------------------------------------------------------------------------
+||   4.4% |  16.0 |   -- |    -- | std::thread::join
+||   1.9% |   7.0 |  3.1 | 38.9% | __memcpy_avx_unaligned_erms
+||============================================================================
+|   2.8% |  10.0 |   -- |    -- | RT
+||----------------------------------------------------------------------------
+||   1.7% |   6.0 | 16.8 | 80.4% | nanosleep
+|=============================================================================
+
+Notes for table 2:
+
+  This table shows functions that have the most significant exclusive
+    time, taking the maximum time across ranks and threads.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O profile_max ...
+
+Table 2:  Profile of maximum function times
+
+  Samp% |  Samp | Imb. |  Imb. | Function
+        |       | Samp | Samp% |  Thread=HIDE
+|-----------------------------------------------------------------------------
+| 100.0% | 351.0 | 69.9 | 20.0% | std::thread::_State_impl<>::_M_run
+|  72.4% | 254.0 | 32.8 | 13.0% | parlay::fork_join_scheduler::parfor_<>
+|  12.0% |  42.0 |   -- |    -- | parlay::sequence<>::sequence<>::{lambda#1}::operator()
+|  10.8% |  38.0 | 28.6 | 75.4% | parlay::scheduler<>::try_steal
+|  10.0% |  35.0 |   -- |    -- | pthread_create
+|   6.0% |  21.0 | 16.8 | 80.4% | nanosleep
+|   4.6% |  16.0 |   -- |    -- | std::thread::join
+|   2.3% |   8.0 |  3.1 | 38.9% | __memcpy_avx_unaligned_erms
+|   1.1% |   4.0 |  2.4 | 61.7% | sched_yield
+|=============================================================================
+
+Notes for table 3:
+
+  This table shows functions that have the most significant exclusive
+    time, taking for each thread the average time across ranks.
+    The imbalance percentage is relative to the team observed to
+    participate in execution.
+    Use -s th=ALL to see individual thread values.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O profile_th_pe ...
+
+Table 3:  Profile by Function Group and Function with Ranks under Threads
+
+  Samp% |  Samp | Imb. |  Imb. | Team | Group
+        |       | Samp | Samp% | Size |  Function
+        |       |      |       |      |   Thread=HIDE
+        |       |      |       |      |    PE=HIDE
+       
+ 100.0% | 363.0 |   -- |    -- |   -- | Total
+|-----------------------------------------------------------------------------
+|  80.2% | 291.0 |   -- |    -- |   -- | USER
+||----------------------------------------------------------------------------
+||  60.1% | 218.0 | 32.8 | 13.0% |  256 | parlay::fork_join_scheduler::parfor_<>
+||  11.6% |  42.0 |   -- |    -- |    1 | parlay::sequence<>::sequence<>::{lambda#1}::operator()
+||   8.3% |  30.0 | 28.6 | 75.4% |  256 | parlay::scheduler<>::try_steal
+||============================================================================
+|   9.6% |  35.0 |   -- |    -- |   -- | PTHREAD
+||----------------------------------------------------------------------------
+||   9.6% |  35.0 |   -- |    -- |    1 | pthread_create
+||============================================================================
+|   7.4% |  27.0 |   -- |    -- |   -- | ETC
+||----------------------------------------------------------------------------
+||   4.4% |  16.0 |   -- |    -- |    1 | std::thread::join
+||   1.9% |   7.0 |  3.1 | 38.9% |  256 | __memcpy_avx_unaligned_erms
+||============================================================================
+|   2.8% |  10.0 |   -- |    -- |   -- | RT
+||----------------------------------------------------------------------------
+||   1.7% |   6.0 | 16.8 | 80.4% |  174 | nanosleep
+|=============================================================================
+
+Notes for table 4:
+
+  This table shows functions, and line numbers within functions, that
+    have significant exclusive sample hits, averaged across ranks.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O samp_profile+src ...
+
+Table 4:  Sample Profile by Group, Function, and Line
+
+  Samp% |  Samp | Imb. |  Imb. | Group
+        |       | Samp | Samp% |  Function
+        |       |      |       |   Source
+        |       |      |       |    Line
+        |       |      |       |     Thread=HIDE
+       
+ 100.0% | 363.0 |   -- |    -- | Total
+|-----------------------------------------------------------------------------
+|  80.2% | 291.0 |   -- |    -- | USER
+||----------------------------------------------------------------------------
+||  60.1% | 218.0 |   -- |    -- | parlay::fork_join_scheduler::parfor_<>
+|||---------------------------------------------------------------------------
+3||  57.0% | 207.0 |   -- |    -- | ParlayANN/data_tools/utils/euclidian_point.h
+||||--------------------------------------------------------------------------
+4|||   5.8% |  21.0 | 14.4 | 38.0% | line.87
+4|||  51.0% | 185.0 | 40.8 | 17.4% | line.88
+||||==========================================================================
+3||   1.7% |   6.0 |   -- |    -- | ParlayANN/data_tools/parlay/scheduler.h
+|||===========================================================================
+||  11.6% |  42.0 |   -- |    -- | parlay::sequence<>::sequence<>::{lambda#1}::operator()
+3|  11.3% |  41.0 |   -- |    -- |  ParlayANN/data_tools/utils/euclidian_point.h
+||||--------------------------------------------------------------------------
+4|||   1.9% |   7.0 |   -- |    -- | line.87
+4|||   9.4% |  34.0 |   -- |    -- | line.88
+||||==========================================================================
+||   8.3% |  30.0 |   -- |    -- | parlay::scheduler<>::try_steal
+|||---------------------------------------------------------------------------
+3||   5.0% |  18.0 |   -- |    -- | data_tools/parlay/internal/work_stealing_deque.h
+||||--------------------------------------------------------------------------
+4|||   2.8% |  10.0 | 15.1 | 79.7% | line.74
+4|||   1.4% |   5.0 |  3.4 | 69.0% | line.83
+||||==========================================================================
+3||   2.8% |  10.0 |   -- |    -- | ParlayANN/data_tools/parlay/scheduler.h
+||||--------------------------------------------------------------------------
+4|||   1.1% |   4.0 |  3.4 | 68.5% | line.272
+4|||   1.1% |   4.0 |  3.2 | 65.1% | line.273
+||============================================================================
+|   9.6% |  35.0 |   -- |    -- | PTHREAD
+||----------------------------------------------------------------------------
+||   9.6% |  35.0 |   -- |    -- | pthread_create
+||============================================================================
+|   7.4% |  27.0 |   -- |    -- | ETC
+||----------------------------------------------------------------------------
+||   4.4% |  16.0 |   -- |    -- | std::thread::join
+||   1.9% |   7.0 |  3.1 | 38.9% | __memcpy_avx_unaligned_erms
+||============================================================================
+|   2.8% |  10.0 |   -- |    -- | RT
+||----------------------------------------------------------------------------
+||   1.7% |   6.0 | 16.8 | 80.4% | nanosleep
+|=============================================================================
+
+Notes for table 5:
+
+  This table shows HW performance counter data for the whole program,
+    averaged across ranks or threads, as applicable.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O hwpc ...
+
+Table 5:  Program HW Performance Counter Data
+
+Thread=HIDE
+
+  
+==============================================================================
+  Total
+------------------------------------------------------------------------------
+  Thread Time                                                    6.277738 secs
+  REQUESTS_TO_L2_GROUP1:L2_HW_PF                              108,653,655 
+  REQUESTS_TO_L2_GROUP1:RD_BLK_X                                  673,626 
+  CORE_TO_L2_CACHEABLE_REQUEST_ACCESS_STATUS:LS_RD_BLK_C        1,690,120 
+  L2_PREFETCH_HIT_L2:L2_HW_PREFETCHER:L1_HW_PREFETCHER        180,903,346 
+  L2_PREFETCH_HIT_L3:L2_HW_PREFETCHER:L1_HW_PREFETCHER         46,345,563 
+==============================================================================
+
+Notes for table 6:
+
+  This table show the average time and number of bytes read from each
+    input file, taking the average over the number of ranks that read
+    from the file.  It also shows the number of read operations, and
+    average rates.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O read_stats ...
+
+Table 6:  File Input Stats by Filename
+
+ Avg Read |     Avg Read |   Read Rate | Number |    Avg |    Bytes/ Call | File Name=!x/^/(proc|sys)/
+ Time per |  MiBytes per | MiBytes/sec |     of |  Reads |                |  PE=HIDE
+   Reader |  Reader Rank |             | Reader |    per |                | 
+     Rank |              |             |  Ranks | Reader |                | 
+          |              |             |        |   Rank |                | 
+|-----------------------------------------------------------------------------
+| 2.553067 | 1,831.054695 |  717.198116 |      1 |    2.0 | 960,000,004.00 | /pscratch/sd/l/landrum/data/gist/gist_learn.fbin
+| 0.008258 |     3.662117 |  443.451185 |      1 |    2.0 |   1,920,004.00 | /pscratch/sd/l/landrum/data/gist/gist_query.fbin
+|=============================================================================
+
+Notes for table 7:
+
+  This table show the average time and number of bytes written to each
+    output file, taking the average over the number of ranks that
+    wrote to the file.  It also shows the number of write operations,
+    and average rates.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O write_stats ...
+
+Table 7:  File Output Stats by Filename
+
+      Avg |      Avg |  Write Rate | Number |    Avg |     Bytes/ | File Name=!x/^/(proc|sys)/
+    Write |    Write | MiBytes/sec |     of | Writes |       Call |  PE=HIDE
+ Time per |  MiBytes |             | Writer |    per |            | 
+   Writer |      per |             |  Ranks | Writer |            | 
+     Rank |   Writer |             |        |   Rank |            | 
+          |     Rank |             |        |        |            | 
+|-----------------------------------------------------------------------------
+| 0.001314 | 0.762947 |  580.750981 |      1 |    2.0 | 400,004.00 | /pscratch/sd/l/landrum/data/gist/gist_groundtruth_profile_w_craypat.ivecs
+| 0.000428 | 0.000252 |    0.588167 |      1 |   25.0 |      10.56 | stdout
+|=============================================================================
+
+Table 8:  Lustre File Information
+
+                                                                 File Path |    Stripe | Stripe | Stripe | OST list
+                                                                           |      size | offset |  count | 
+------------------------------------------------------------------------------
+                          /pscratch/sd/l/landrum/data/gist/gist_learn.fbin | 1,048,576 |      0 |      1 | 36
+                          /pscratch/sd/l/landrum/data/gist/gist_query.fbin | 1,048,576 |      0 |      1 | 74
+ /pscratch/sd/l/landrum/data/gist/gist_groundtruth_profile_w_craypat.ivecs | 1,048,576 |      0 |      1 | 38
+==============================================================================
+
+Notes for table 9:
+
+  This table shows energy and power usage for the nodes with the
+    maximum, mean, and minimum usage, as well as the sum of usage over
+    all nodes.
+    Energy and power for accelerators is also shown, if available.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O program_energy ...
+
+Table 9:  Program Energy and Power Usage from Cray PM
+
+Thread=HIDE
+
+  
+==========================================================
+  Total
+----------------------------------------------------------
+  PM Energy Node    485 W    3,056 J
+  PM Energy Cpu     234 W    1,472 J
+  PM Energy Memory  155 W      976 J
+  Process Time            6.295860 secs
+==========================================================
+
+Notes for table 10:
+
+  This table shows values shown for HiMem calculated from information
+    in the /proc/self/numa_maps files captured near the end of the
+    program. It is the total size of all pages, including huge pages,
+    that were actually mapped into physical memory from both private
+    and shared memory segments.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O himem ...
+
+Table 10:  Memory High Water Mark by Numa Node
+
+Numanode
+
+  
+==============================================================================
+  numanode.7
+------------------------------------------------------------------------------
+  Process HiMem (MiBytes)          2,186.3 
+  HiMem Numa Node 0 (MiBytes)        239.1 MiBytes
+  HiMem Numa Node 1 (MiBytes)        302.7 MiBytes
+  HiMem Numa Node 2 (MiBytes)        241.4 MiBytes
+  HiMem Numa Node 3 (MiBytes)        280.4 MiBytes
+  HiMem Numa Node 4 (MiBytes)        258.1 MiBytes
+  HiMem Numa Node 5 (MiBytes)        204.9 MiBytes
+  HiMem Numa Node 6 (MiBytes)        230.1 MiBytes
+  HiMem Numa Node 7 (MiBytes)        429.6 MiBytes
+==============================================================================
+
+Notes for table 11:
+
+  This table shows memory traffic for numa nodes, taking for each numa
+    node the maximum value across nodes. It also shows the balance in
+    memory traffic by showing the top 3 and bottom 3 node values.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O mem_bw ...
+
+Table 11:  Memory Bandwidth by Numanode
+
+   Thread | Numanode
+     Time |  Thread=HIDE
+|-----------------------
+| 5.962538 | numanode.0
+| 5.972416 | numanode.1
+| 5.970301 | numanode.2
+| 5.959929 | numanode.3
+| 5.949262 | numanode.4
+| 5.958468 | numanode.5
+| 5.949336 | numanode.6
+| 6.277738 | numanode.7
+|=======================
+
+Notes for table 12:
+
+  This table shows total wall clock time for the ranks with the
+    maximum, mean, and minimum time, as well as the average across
+    ranks.
+    It also shows maximum memory usage from /proc/self/numa_maps for
+    those ranks, and on average.  The usage is total size of all
+    pages, including huge pages, that were actually mapped into
+    physical memory from both private and shared memory segments.
+  For further explanation, see the "General table notes" below, or 
+    use:  pat_report -v -O program_time ...
+
+Table 12:  Wall Clock Time, Memory High Water Mark
+
+  Process |   Process | Thread
+     Time |     HiMem | 
+          | (MiBytes) | 
+         
+ 6.295860 |   2,186.3 | Total
+|-------------------------------
+| 6.295860 |   2,186.3 | thread.0
+|===============================
+
+========================  Additional details  ========================
+
+General table notes:
+
+    The default notes for a table are based on the default definition of
+    the table, and do not account for the effects of command-line options
+    that may modify the content of the table.
+    
+    Detailed notes, produced by the pat_report -v option, do account for
+    all command-line options, and also show how data is aggregated, and
+    if the table content is limited by thresholds, rank selections, etc.
+    
+    An imbalance metric in a line is based on values in main threads
+    across multiple ranks, or on values across all threads, as applicable.
+    
+    An imbalance percent in a line is relative to the maximum value
+    for that line across ranks or threads, as applicable.
+    
+    If the number of Calls for a function is shown as "--", then that
+    function was not traced and the other values in its line summarize
+    the data collected for functions that it calls and that were traced.
+    
+Experiment:  samp_cs_time
+
+Sampling interval:  10000 microsecs
+
+Original path to data file:
+  /global/u2/a/anmol/test/ParlayANN/data_tools/compute_groundtruth+pat+238745-1618452396s/xf-files   (RTS)
+
+Original program:
+  /global/u2/a/anmol/test/ParlayANN/data_tools/compute_groundtruth
+
+Instrumented with:  pat_build compute_groundtruth
+
+  Option file "apa" contained:
+    -Drtenv=PAT_RT_PERFCTR=default_samp
+    -Drtenv=PAT_RT_EXPERIMENT=samp_cs_time
+    -Drtenv=PAT_RT_SAMPLING_MODE=3
+    -g upc
+    -g caf
+    -g mpi
+    -g shmem
+    -g syscall
+    -g io
+    -g dl
+
+Instrumented program:  ./compute_groundtruth+pat
+
+Program invocation:
+  ./compute_groundtruth+pat -base_path /pscratch/sd/l/landrum/data/gist/gist_learn.fbin -query_path /pscratch/sd/l/landrum/data/gist/gist_query.fbin -data_type float -k 100 -dist_func Euclidian -gt_path ...
+
+Exit Status:  0 for 1 PE
+
+Thread start functions and creator functions:
+     1 thread:  main
+   255 threads:  std::error_code::default_error_condition() const <- std::thread::_M_start_thread(std::unique_ptr<std::thread::_State, std::default_delete<std::thread::_State> >, void (*)())
+
+Memory pagesize:  4 KiB
+
+Memory hugepagesize:  Not Available
+
+Programming environment:  GNU
+
+Runtime environment variables:
+  CRAYPAT_COMPILER_OPTIONS=1
+  CRAYPAT_LD_LIBRARY_PATH=/opt/cray/pe/perftools/23.12.0/lib64
+  CRAYPAT_OPTS_EXECUTABLE=libexec64/opts
+  CRAYPAT_ROOT=/opt/cray/pe/perftools/23.12.0
+  CRAYPE_VERSION=2.7.30
+  CRAY_CUDATOOLKIT_VERSION=23.9_12.2
+  CRAY_DSMML_VERSION=0.2.2
+  CRAY_MPICH_VERSION=8.1.28
+  CRAY_PERFTOOLS_VERSION=23.12.0
+  CRAY_PE_LIBSCI_VERSION=23.12.5
+  GCC_VERSION=12.3
+  GNU_VERSION=12.3
+  HUGETLB_VERBOSE=0
+  LMOD_FAMILY_COMPILER_VERSION=12.3
+  LMOD_FAMILY_CRAYPE_ACCEL_VERSION=false
+  LMOD_FAMILY_CRAYPE_CPU_VERSION=false
+  LMOD_FAMILY_CRAYPE_NETWORK_VERSION=false
+  LMOD_FAMILY_CRAYPE_VERSION=2.7.30
+  LMOD_FAMILY_CUDATOOLKIT_VERSION=12.2
+  LMOD_FAMILY_GCC_COMPILER_VERSION=12.3
+  LMOD_FAMILY_HARDWARE_VERSION=1.0
+  LMOD_FAMILY_LIBSCI_VERSION=23.12.5
+  LMOD_FAMILY_MPI_VERSION=8.1.28
+  LMOD_FAMILY_PERFTOOLS_VERSION=false
+  LMOD_FAMILY_PRGENV_VERSION=8.5.0
+  LMOD_VERSION=8.7.31
+  MPICH_DIR=/opt/cray/pe/mpich/8.1.28/ofi/gnu/12.3
+  MPICH_GPU_SUPPORT_ENABLED=0
+  MPICH_MPIIO_DVS_MAXNODES=24
+  MPICH_OFI_CXI_COUNTER_REPORT=0
+  NERSC_FAMILY_PERFTOOLS_VERSION=false
+  PAT_RT_EXPERIMENT=samp_cs_time
+  PAT_RT_PERFCTR=default_samp
+  PAT_RT_PERFCTR_DISABLE_COMPONENTS=nvml,rocm_smi
+  PAT_RT_SAMPLING_MODE=3
+  PERFTOOLS_VERSION=23.12.0
+  TERM_PROGRAM_VERSION=1.96.0
+
+Report time environment variables:
+    CRAYPAT_ROOT=/opt/cray/pe/perftools/23.12.0
+
+Number of MPI control variables collected:  136
+
+  (To see the list, specify: -s mpi_cvar=show)
+
+Report command line options:  <none>
+
+Operating system:
+  Linux 5.14.21-150400.24.111_12.0.91-cray_shasta_c #1 SMP Mon Aug 5 07:02:07 UTC 2024 (0c4e917)
+
+Hardware performance counter events:
+   REQUESTS_TO_L2_GROUP1:L2_HW_PF                          All L2 cache requests:Number of prefetches accepted by L2 pipeline, hit or miss
+   REQUESTS_TO_L2_GROUP1:RD_BLK_X                          All L2 cache requests:Number of data cache stores
+   CORE_TO_L2_CACHEABLE_REQUEST_ACCESS_STATUS:LS_RD_BLK_C  L2 cache request outcomes. This event does not count accesses to the L2 cache by the L2 prefetcher:Number of data cache requests missing in the L2 (all types)
+   L2_PREFETCH_HIT_L2:L2_HW_PREFETCHER:L1_HW_PREFETCHER    Number of L2 prefetches that hit in the L2:Number of requests generated by L2 hardware prefetcher:Number of requests generated by L1 hardware prefetcher
+   L2_PREFETCH_HIT_L3:L2_HW_PREFETCHER:L1_HW_PREFETCHER    Number of L2 prefetches accepted by the L2 pipeline which miss theL2 cache and hit the L3:Number of requests generated by L2 hardware prefetcher:Number of requests generated by L1 hardware prefetcher
+
