@@ -29,7 +29,7 @@ faiss_throughput = calculate_throughput(faiss_sizes, faiss_times)
 our_throughput = calculate_throughput(our_sizes, our_times)
 
 # Plot throughput
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(6, 4))
 plt.plot(faiss_sizes, faiss_throughput, marker='o', label='FAISS')
 plt.plot(our_sizes, our_throughput, marker='s', label='Our Implementation')
 
@@ -46,5 +46,9 @@ plt.grid(True)
 plt.tight_layout()
 
 # Save and show the plot
-plt.savefig("../plots/throughput_faiss_comparison.png")
+plt.savefig("../plots/throughput_faiss_comparison.png", dpi=300)
+
+# print average multiple of our throughput over faiss
+print((sum(our_throughput)/len(our_throughput))/(sum(faiss_throughput)/len(faiss_throughput)))
+
 plt.show()
